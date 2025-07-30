@@ -23,9 +23,6 @@
         <activity android:name=".ui.course.CourseListActivity" />
         <activity android:name=".ui.course.AddEditCourseActivity" />
         <activity android:name=".ui.course.CourseDetailActivity" />
-        <activity android:name=".ui.instance.InstanceListActivity" />
-        <activity android:name=".ui.instance.AddEditInstanceActivity" />
-        <activity android:name=".ui.instance.InstanceDetailActivity" />
         <activity android:name=".ui.course.AddEditClassInstanceActivity" />
     </application>
 

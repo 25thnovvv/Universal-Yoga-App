@@ -11,82 +11,117 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 public class FirebaseManager {
-    private final String DATABASE_URL = "https://universalyogaapps-fb6fa-default-rtdb.asia-southeast1.firebasedatabase.app/";
-    private final FirebaseDatabase database;
-    private final DatabaseReference courseRef;
-    private final DatabaseReference classInstanceRef;
+    // Firebase configuration
+    private static final String FIREBASE_DATABASE_URL = "https://universayogaapp-default-rtdb.asia-southeast1.firebasedatabase.app/";
+    private final FirebaseDatabase firebaseDatabase;
+    private final DatabaseReference coursesReference;
+    private final DatabaseReference classInstancesReference;
 
+    // Constructor
     public FirebaseManager() {
-        database = FirebaseDatabase.getInstance(DATABASE_URL);
-        courseRef = database.getReference("courses");
-        classInstanceRef = database.getReference("class_instances");
+        firebaseDatabase = FirebaseDatabase.getInstance(FIREBASE_DATABASE_URL);
+        coursesReference = firebaseDatabase.getReference("courses");
+        classInstancesReference = firebaseDatabase.getReference("class_instances");
     }
 
-    // Add Course
-    public void addCourse(Course course, DatabaseReference.CompletionListener listener) {
-        String id = courseRef.push().getKey();
-        course.setId(id);
-        courseRef.child(id).setValue(course, listener);
+    // Course management methods
+    public void createNewCourse(Course course, DatabaseReference.CompletionListener completionListener) {
+        String generatedId = coursesReference.push().getKey();
+        course.setId(generatedId);
+        coursesReference.child(generatedId).setValue(course, completionListener);
     }
 
-    // Lấy danh sách Course
-    public void getCourses(ValueEventListener listener) {
-        courseRef.addValueEventListener(listener);
+    public void fetchAllCourses(ValueEventListener valueEventListener) {
+        coursesReference.addValueEventListener(valueEventListener);
     }
 
-    // Lấy 1 Course theo id
-    public void getCourseById(String courseId, ValueEventListener listener) {
-        courseRef.child(courseId).addListenerForSingleValueEvent(listener);
+    public void fetchCourseById(String courseId, ValueEventListener valueEventListener) {
+        coursesReference.child(courseId).addListenerForSingleValueEvent(valueEventListener);
     }
 
-    // Update Course
-    public void updateCourse(Course course, DatabaseReference.CompletionListener listener) {
+    public void updateExistingCourse(Course course, DatabaseReference.CompletionListener completionListener) {
         if (course.getId() == null) return;
-        courseRef.child(course.getId()).setValue(course, listener);
+        coursesReference.child(course.getId()).setValue(course, completionListener);
     }
 
-    // Delete Course
-    public void deleteCourse(String courseId, DatabaseReference.CompletionListener listener) {
-        courseRef.child(courseId).removeValue(listener);
+    public void removeCourse(String courseId, DatabaseReference.CompletionListener completionListener) {
+        coursesReference.child(courseId).removeValue(completionListener);
     }
 
-    // Add ClassInstance
-    public void addClassInstance(ClassInstance instance, DatabaseReference.CompletionListener listener) {
-        String id = classInstanceRef.push().getKey();
-        instance.setId(id);
-        classInstanceRef.child(id).setValue(instance, listener);
+    // Class instance management methods
+    public void createNewClassInstance(ClassInstance classInstance, DatabaseReference.CompletionListener completionListener) {
+        String generatedId = classInstancesReference.push().getKey();
+        classInstance.setId(generatedId);
+        classInstancesReference.child(generatedId).setValue(classInstance, completionListener);
     }
 
-    // Lấy danh sách ClassInstance theo courseId
-    public void getClassInstancesByCourseId(String courseId, ValueEventListener listener) {
-        classInstanceRef.orderByChild("courseId").equalTo(courseId).addValueEventListener(listener);
+    public void fetchClassInstancesByCourseId(String courseId, ValueEventListener valueEventListener) {
+        classInstancesReference.orderByChild("courseId").equalTo(courseId).addValueEventListener(valueEventListener);
     }
 
-    // Update ClassInstance
-    public void updateClassInstance(ClassInstance instance, DatabaseReference.CompletionListener listener) {
-        if (instance.getId() == null) return;
-        classInstanceRef.child(instance.getId()).setValue(instance, listener);
+    public void updateExistingClassInstance(ClassInstance classInstance, DatabaseReference.CompletionListener completionListener) {
+        if (classInstance.getId() == null) return;
+        classInstancesReference.child(classInstance.getId()).setValue(classInstance, completionListener);
     }
 
-    // Delete ClassInstance
-    public void deleteClassInstance(String instanceId, DatabaseReference.CompletionListener listener) {
-        classInstanceRef.child(instanceId).removeValue(listener);
+    public void removeClassInstance(String instanceId, DatabaseReference.CompletionListener completionListener) {
+        classInstancesReference.child(instanceId).removeValue(completionListener);
     }
 
-    // Delete all ClassInstances by courseId
-    public void deleteClassInstancesByCourseId(String courseId, DatabaseReference.CompletionListener listener) {
-        classInstanceRef.orderByChild("courseId").equalTo(courseId).addListenerForSingleValueEvent(new ValueEventListener() {
+    public void removeAllClassInstancesByCourseId(String courseId, DatabaseReference.CompletionListener completionListener) {
+        classInstancesReference.orderByChild("courseId").equalTo(courseId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                for (DataSnapshot child : snapshot.getChildren()) {
-                    child.getRef().removeValue();
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot childSnapshot : dataSnapshot.getChildren()) {
+                    childSnapshot.getRef().removeValue();
                 }
-                if (listener != null) listener.onComplete(null, classInstanceRef);
+                if (completionListener != null) completionListener.onComplete(null, classInstancesReference);
             }
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                if (listener != null) listener.onComplete(error, classInstanceRef);
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                if (completionListener != null) completionListener.onComplete(databaseError, classInstancesReference);
             }
         });
+    }
+
+    // Legacy methods for backward compatibility
+    public void addCourse(Course course, DatabaseReference.CompletionListener listener) {
+        createNewCourse(course, listener);
+    }
+
+    public void getCourses(ValueEventListener listener) {
+        fetchAllCourses(listener);
+    }
+
+    public void getCourseById(String courseId, ValueEventListener listener) {
+        fetchCourseById(courseId, listener);
+    }
+
+    public void updateCourse(Course course, DatabaseReference.CompletionListener listener) {
+        updateExistingCourse(course, listener);
+    }
+
+    public void deleteCourse(String courseId, DatabaseReference.CompletionListener listener) {
+        removeCourse(courseId, listener);
+    }
+
+    public void addClassInstance(ClassInstance instance, DatabaseReference.CompletionListener listener) {
+        createNewClassInstance(instance, listener);
+    }
+
+    public void getClassInstancesByCourseId(String courseId, ValueEventListener listener) {
+        fetchClassInstancesByCourseId(courseId, listener);
+    }
+
+    public void updateClassInstance(ClassInstance instance, DatabaseReference.CompletionListener listener) {
+        updateExistingClassInstance(instance, listener);
+    }
+
+    public void deleteClassInstance(String instanceId, DatabaseReference.CompletionListener listener) {
+        removeClassInstance(instanceId, listener);
+    }
+
+    public void deleteClassInstancesByCourseId(String courseId, DatabaseReference.CompletionListener listener) {
+        removeAllClassInstancesByCourseId(courseId, listener);
     }
 } 

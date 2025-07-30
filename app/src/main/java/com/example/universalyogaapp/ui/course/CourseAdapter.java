@@ -16,77 +16,125 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseViewHolder> {
-    private List<Course> courseList = new ArrayList<>();
-    private OnItemClickListener listener;
+    
+    // Data management
+    private List<Course> courseDataList = new ArrayList<>();
+    private OnItemClickListener itemClickListener;
 
+    // Interface for item click events
     public interface OnItemClickListener {
         void onItemClick(Course course);
     }
 
+    /**
+     * Set item click listener
+     */
     public void setOnItemClickListener(OnItemClickListener listener) {
-        this.listener = listener;
+        this.itemClickListener = listener;
     }
 
-    public void setCourseList(List<Course> courses) {
-        this.courseList = courses;
+    /**
+     * Update course data list
+     */
+    public void updateCourseList(List<Course> courses) {
+        this.courseDataList = courses;
         notifyDataSetChanged();
     }
 
     @NonNull
     @Override
     public CourseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_course, parent, false);
-        return new CourseViewHolder(view);
+        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_course, parent, false);
+        return new CourseViewHolder(itemView);
     }
 
     @Override
     public void onBindViewHolder(@NonNull CourseViewHolder holder, int position) {
-        Course course = courseList.get(position);
-        holder.textViewName.setText(course.getName());
-        holder.textViewDescription.setText(course.getDescription());
-        // Hiển thị viết tắt 3 chữ đầu cho mỗi ngày
-        String shortSchedule = "";
-        if (course.getSchedule() != null && !course.getSchedule().isEmpty()) {
-            String[] days = course.getSchedule().split(",");
-            StringBuilder sb = new StringBuilder();
-            for (String day : days) {
-                String trimmed = day.trim();
-                if (trimmed.length() >= 3) {
-                    sb.append(trimmed.substring(0, 3));
-                } else {
-                    sb.append(trimmed);
-                }
-                sb.append(", ");
-            }
-            if (sb.length() > 2) sb.setLength(sb.length() - 2); // Remove trailing comma
-            shortSchedule = sb.toString();
-        }
-        holder.textViewSchedule.setText(shortSchedule);
-        holder.textViewTime.setText(course.getTime());
-        holder.textViewTeacher.setText(course.getTeacher());
+        Course currentCourse = courseDataList.get(position);
+        holder.bindCourseData(currentCourse);
         
         holder.itemView.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onItemClick(course);
+            if (itemClickListener != null) {
+                itemClickListener.onItemClick(currentCourse);
             }
         });
     }
 
     @Override
     public int getItemCount() {
-        return courseList.size();
+        return courseDataList.size();
     }
 
-    class CourseViewHolder extends RecyclerView.ViewHolder {
-        TextView textViewName, textViewDescription, textViewSchedule, textViewTime, textViewTeacher;
+    /**
+     * ViewHolder class for course items
+     */
+    static class CourseViewHolder extends RecyclerView.ViewHolder {
+        // UI Components
+        private TextView courseNameField;
+        private TextView courseDescriptionField;
+        private TextView courseScheduleField;
+        private TextView courseTimeField;
+        private TextView courseTeacherField;
 
         public CourseViewHolder(@NonNull View itemView) {
             super(itemView);
-            textViewName = itemView.findViewById(R.id.textViewCourseName);
-            textViewDescription = itemView.findViewById(R.id.textViewCourseDescription);
-            textViewSchedule = itemView.findViewById(R.id.textViewCourseSchedule);
-            textViewTime = itemView.findViewById(R.id.textViewCourseTime);
-            textViewTeacher = itemView.findViewById(R.id.textViewCourseTeacher);
+            initializeViews(itemView);
+        }
+
+        /**
+         * Initialize view references
+         */
+        private void initializeViews(View itemView) {
+            courseNameField = itemView.findViewById(R.id.textViewCourseName);
+            courseDescriptionField = itemView.findViewById(R.id.textViewCourseDescription);
+            courseScheduleField = itemView.findViewById(R.id.textViewCourseSchedule);
+            courseTimeField = itemView.findViewById(R.id.textViewCourseTime);
+            courseTeacherField = itemView.findViewById(R.id.textViewCourseTeacher);
+        }
+
+        /**
+         * Bind course data to views
+         */
+        public void bindCourseData(Course course) {
+            courseNameField.setText(course.getName());
+            courseDescriptionField.setText(course.getDescription());
+            courseScheduleField.setText(formatScheduleDisplay(course.getSchedule()));
+            courseTimeField.setText(course.getTime());
+            courseTeacherField.setText(course.getTeacher());
+        }
+
+        /**
+         * Format schedule for display (abbreviated)
+         */
+        private String formatScheduleDisplay(String schedule) {
+            if (schedule == null || schedule.isEmpty()) {
+                return "";
+            }
+
+            String[] days = schedule.split(",");
+            StringBuilder formattedSchedule = new StringBuilder();
+            
+            for (String day : days) {
+                String trimmedDay = day.trim();
+                if (trimmedDay.length() >= 3) {
+                    formattedSchedule.append(trimmedDay.substring(0, 3));
+                } else {
+                    formattedSchedule.append(trimmedDay);
+                }
+                formattedSchedule.append(", ");
+            }
+            
+            // Remove trailing comma and space
+            if (formattedSchedule.length() > 2) {
+                formattedSchedule.setLength(formattedSchedule.length() - 2);
+            }
+            
+            return formattedSchedule.toString();
         }
     }
-} 
+
+    // Legacy methods for backward compatibility
+    public void setCourseList(List<Course> courses) {
+        updateCourseList(courses);
+    }
+}

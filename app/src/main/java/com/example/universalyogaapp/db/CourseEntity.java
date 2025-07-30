@@ -6,57 +6,126 @@ import androidx.room.Index;
 
 @Entity(tableName = "courses")
 public class CourseEntity {
+    // Primary key for local database
     @PrimaryKey(autoGenerate = true)
-    public int localId;
+    public int localDatabaseId;
 
-    public String firebaseId; // id trên cloud, có thể null nếu chưa sync
-    public String name, schedule, time, teacher, description, note, upcomingDate;
-    public int capacity, duration;
-    public double price;
-    public boolean isSynced;
+    // Cloud synchronization
+    public String cloudDatabaseId;
+    public boolean cloudSyncStatus;
 
+    // Course information
+    public String courseName;
+    public String weeklySchedule;
+    public String classTime;
+    public String instructorName;
+    public String courseDescription;
+    public String additionalNotes;
+    public String nextClassDate;
+    public int maxStudents;
+    public int sessionDuration;
+    public double coursePrice;
+
+    // Default constructor
     public CourseEntity() {}
 
-    public CourseEntity(int localId, String firebaseId, String name, String schedule, String time, String teacher, String description, String note, String upcomingDate, int capacity, int duration, double price, boolean isSynced) {
-        this.localId = localId;
-        this.firebaseId = firebaseId;
-        this.name = name;
-        this.schedule = schedule;
-        this.time = time;
-        this.teacher = teacher;
-        this.description = description;
-        this.note = note;
-        this.upcomingDate = upcomingDate;
-        this.capacity = capacity;
-        this.duration = duration;
-        this.price = price;
-        this.isSynced = isSynced;
+    // Comprehensive constructor
+    public CourseEntity(int localDatabaseId, String cloudDatabaseId, String courseName, 
+                       String weeklySchedule, String classTime, String instructorName, 
+                       String courseDescription, String additionalNotes, String nextClassDate, 
+                       int maxStudents, int sessionDuration, double coursePrice, boolean cloudSyncStatus) {
+        this.localDatabaseId = localDatabaseId;
+        this.cloudDatabaseId = cloudDatabaseId;
+        this.courseName = courseName;
+        this.weeklySchedule = weeklySchedule;
+        this.classTime = classTime;
+        this.instructorName = instructorName;
+        this.courseDescription = courseDescription;
+        this.additionalNotes = additionalNotes;
+        this.nextClassDate = nextClassDate;
+        this.maxStudents = maxStudents;
+        this.sessionDuration = sessionDuration;
+        this.coursePrice = coursePrice;
+        this.cloudSyncStatus = cloudSyncStatus;
     }
 
-    public int getLocalId() { return localId; }
-    public void setLocalId(int localId) { this.localId = localId; }
-    public String getFirebaseId() { return firebaseId; }
-    public void setFirebaseId(String firebaseId) { this.firebaseId = firebaseId; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getSchedule() { return schedule; }
-    public void setSchedule(String schedule) { this.schedule = schedule; }
-    public String getTime() { return time; }
-    public void setTime(String time) { this.time = time; }
-    public String getTeacher() { return teacher; }
-    public void setTeacher(String teacher) { this.teacher = teacher; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
-    public String getUpcomingDate() { return upcomingDate; }
-    public void setUpcomingDate(String upcomingDate) { this.upcomingDate = upcomingDate; }
-    public int getCapacity() { return capacity; }
-    public void setCapacity(int capacity) { this.capacity = capacity; }
-    public int getDuration() { return duration; }
-    public void setDuration(int duration) { this.duration = duration; }
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
-    public boolean isSynced() { return isSynced; }
-    public void setSynced(boolean synced) { isSynced = synced; }
+    // Primary getters and setters
+    public int getLocalDatabaseId() { return localDatabaseId; }
+    public void setLocalDatabaseId(int localDatabaseId) { this.localDatabaseId = localDatabaseId; }
+
+    public String getCloudDatabaseId() { return cloudDatabaseId; }
+    public void setCloudDatabaseId(String cloudDatabaseId) { this.cloudDatabaseId = cloudDatabaseId; }
+
+    public String getCourseName() { return courseName; }
+    public void setCourseName(String courseName) { this.courseName = courseName; }
+
+    public String getWeeklySchedule() { return weeklySchedule; }
+    public void setWeeklySchedule(String weeklySchedule) { this.weeklySchedule = weeklySchedule; }
+
+    public String getClassTime() { return classTime; }
+    public void setClassTime(String classTime) { this.classTime = classTime; }
+
+    public String getInstructorName() { return instructorName; }
+    public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+
+    public String getCourseDescription() { return courseDescription; }
+    public void setCourseDescription(String courseDescription) { this.courseDescription = courseDescription; }
+
+    public String getAdditionalNotes() { return additionalNotes; }
+    public void setAdditionalNotes(String additionalNotes) { this.additionalNotes = additionalNotes; }
+
+    public String getNextClassDate() { return nextClassDate; }
+    public void setNextClassDate(String nextClassDate) { this.nextClassDate = nextClassDate; }
+
+    public int getMaxStudents() { return maxStudents; }
+    public void setMaxStudents(int maxStudents) { this.maxStudents = maxStudents; }
+
+    public int getSessionDuration() { return sessionDuration; }
+    public void setSessionDuration(int sessionDuration) { this.sessionDuration = sessionDuration; }
+
+    public double getCoursePrice() { return coursePrice; }
+    public void setCoursePrice(double coursePrice) { this.coursePrice = coursePrice; }
+
+    public boolean getCloudSyncStatus() { return cloudSyncStatus; }
+    public void setCloudSyncStatus(boolean cloudSyncStatus) { this.cloudSyncStatus = cloudSyncStatus; }
+
+    // Legacy getters for backward compatibility
+    public int getLocalId() { return localDatabaseId; }
+    public void setLocalId(int localId) { this.localDatabaseId = localId; }
+
+    public String getFirebaseId() { return cloudDatabaseId; }
+    public void setFirebaseId(String firebaseId) { this.cloudDatabaseId = firebaseId; }
+
+    public String getName() { return courseName; }
+    public void setName(String name) { this.courseName = name; }
+
+    public String getSchedule() { return weeklySchedule; }
+    public void setSchedule(String schedule) { this.weeklySchedule = schedule; }
+
+    public String getTime() { return classTime; }
+    public void setTime(String time) { this.classTime = time; }
+
+    public String getTeacher() { return instructorName; }
+    public void setTeacher(String teacher) { this.instructorName = teacher; }
+
+    public String getDescription() { return courseDescription; }
+    public void setDescription(String description) { this.courseDescription = description; }
+
+    public String getNote() { return additionalNotes; }
+    public void setNote(String note) { this.additionalNotes = note; }
+
+    public String getUpcomingDate() { return nextClassDate; }
+    public void setUpcomingDate(String upcomingDate) { this.nextClassDate = upcomingDate; }
+
+    public int getCapacity() { return maxStudents; }
+    public void setCapacity(int capacity) { this.maxStudents = capacity; }
+
+    public int getDuration() { return sessionDuration; }
+    public void setDuration(int duration) { this.sessionDuration = duration; }
+
+    public double getPrice() { return coursePrice; }
+    public void setPrice(double price) { this.coursePrice = price; }
+
+    public boolean isSynced() { return cloudSyncStatus; }
+    public void setSynced(boolean synced) { this.cloudSyncStatus = synced; }
 }

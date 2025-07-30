@@ -1,39 +1,67 @@
 package com.example.universalyogaapp.model;
 
-public class ClassInstance implements java.io.Serializable {
-    private String id; // Firebase id
-    private String courseId; // Firebase id của Course
-    private String date;
-    private String teacher;
-    private String note;
-    private int localId;
+import java.io.Serializable;
 
+public class ClassInstance implements Serializable {
+    // Instance identification
+    private String instanceId;
+    private String parentCourseId;
+    private int localDatabaseId;
+    
+    // Class details
+    private String classDate;
+    private String assignedInstructor;
+    private String classNotes;
+
+    // Default constructor for Firebase serialization
     public ClassInstance() {}
 
-    public ClassInstance(String id, String courseId, String date, String teacher, String note, int localId) {
-        this.id = id;
-        this.courseId = courseId;
-        this.date = date;
-        this.teacher = teacher;
-        this.note = note;
-        this.localId = localId;
+    // Comprehensive constructor
+    public ClassInstance(String instanceId, String parentCourseId, String classDate, 
+                        String assignedInstructor, String classNotes, int localDatabaseId) {
+        this.instanceId = instanceId;
+        this.parentCourseId = parentCourseId;
+        this.classDate = classDate;
+        this.assignedInstructor = assignedInstructor;
+        this.classNotes = classNotes;
+        this.localDatabaseId = localDatabaseId;
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    // Primary getters and setters
+    public String getInstanceId() { return instanceId; }
+    public void setInstanceId(String instanceId) { this.instanceId = instanceId; }
 
-    public String getCourseId() { return courseId; }
-    public void setCourseId(String courseId) { this.courseId = courseId; }
+    public String getParentCourseId() { return parentCourseId; }
+    public void setParentCourseId(String parentCourseId) { this.parentCourseId = parentCourseId; }
 
-    public String getDate() { return date; }
-    public void setDate(String date) { this.date = date; }
+    public String getClassDate() { return classDate; }
+    public void setClassDate(String classDate) { this.classDate = classDate; }
 
-    public String getTeacher() { return teacher; }
-    public void setTeacher(String teacher) { this.teacher = teacher; }
+    public String getAssignedInstructor() { return assignedInstructor; }
+    public void setAssignedInstructor(String assignedInstructor) { this.assignedInstructor = assignedInstructor; }
 
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
+    public String getClassNotes() { return classNotes; }
+    public void setClassNotes(String classNotes) { this.classNotes = classNotes; }
 
-    public int getLocalId() { return localId; }
-    public void setLocalId(int localId) { this.localId = localId; }
-} 
+    public int getLocalDatabaseId() { return localDatabaseId; }
+    public void setLocalDatabaseId(int localDatabaseId) { this.localDatabaseId = localDatabaseId; }
+
+    // Legacy getters for backward compatibility
+    public String getId() { return instanceId; }
+    public void setId(String id) { this.instanceId = id; }
+
+    public String getCourseId() { return parentCourseId; }
+    public void setCourseId(String courseId) { this.parentCourseId = courseId; }
+
+    public String getDate() { return classDate; }
+    public void setDate(String date) { this.classDate = date; }
+
+    public String getTeacher() { return assignedInstructor; }
+    public void setTeacher(String teacher) { this.assignedInstructor = teacher; }
+
+    public String getNote() { return classNotes; }
+    public void setNote(String note) { this.classNotes = note; }
+
+    public int getLocalId() { return localDatabaseId; }
+    public void setLocalId(int localId) { this.localDatabaseId = localId; }
+}

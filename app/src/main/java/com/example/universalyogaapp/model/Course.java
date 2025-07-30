@@ -1,59 +1,114 @@
 package com.example.universalyogaapp.model;
 
-public class Course {
-    private String id;
-    private String name;
-    private String schedule; // Class schedule (e.g. Mon, Wed, Fri - 18:00-19:00)
-    private String teacher;  // Teacher
-    private int capacity;
-    private double price;
-    private int duration;
-    private String description;
-    private String note;     // Additional note
-    private String time;     // Class time
-    private String upcomingDate; // Calculated upcoming date
-    private int localId;
+import java.io.Serializable;
 
-    // Empty constructor for Firebase
+public class Course implements Serializable {
+    // Core course information
+    private String courseId;
+    private String courseName;
+    private String weeklySchedule;
+    private String classTime;
+    private String instructorName;
+    private int maxStudents;
+    private double coursePrice;
+    private int sessionDuration;
+    private String courseDescription;
+    private String additionalNotes;
+    private String nextClassDate;
+    private int databaseId;
+
+    // Default constructor for Firebase serialization
     public Course() {}
 
-    public Course(String id, String name, String schedule, String time, String teacher, int capacity, double price, int duration, String description, String note, String upcomingDate, int localId) {
-        this.id = id;
-        this.name = name;
-        this.schedule = schedule;
-        this.time = time;
-        this.teacher = teacher;
-        this.capacity = capacity;
-        this.price = price;
-        this.duration = duration;
-        this.description = description;
-        this.note = note;
-        this.upcomingDate = upcomingDate;
-        this.localId = localId;
+    // Comprehensive constructor
+    public Course(String courseId, String courseName, String weeklySchedule, String classTime, 
+                  String instructorName, int maxStudents, double coursePrice, int sessionDuration, 
+                  String courseDescription, String additionalNotes, String nextClassDate, int databaseId) {
+        this.courseId = courseId;
+        this.courseName = courseName;
+        this.weeklySchedule = weeklySchedule;
+        this.classTime = classTime;
+        this.instructorName = instructorName;
+        this.maxStudents = maxStudents;
+        this.coursePrice = coursePrice;
+        this.sessionDuration = sessionDuration;
+        this.courseDescription = courseDescription;
+        this.additionalNotes = additionalNotes;
+        this.nextClassDate = nextClassDate;
+        this.databaseId = databaseId;
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getSchedule() { return schedule; }
-    public void setSchedule(String schedule) { this.schedule = schedule; }
-    public String getTeacher() { return teacher; }
-    public void setTeacher(String teacher) { this.teacher = teacher; }
-    public int getCapacity() { return capacity; }
-    public void setCapacity(int capacity) { this.capacity = capacity; }
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
-    public int getDuration() { return duration; }
-    public void setDuration(int duration) { this.duration = duration; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
-    public String getTime() { return time; }
-    public void setTime(String time) { this.time = time; }
-    public String getUpcomingDate() { return upcomingDate; }
-    public void setUpcomingDate(String upcomingDate) { this.upcomingDate = upcomingDate; }
-    public int getLocalId() { return localId; }
-    public void setLocalId(int localId) { this.localId = localId; }
-} 
+    // Getters and Setters
+    public String getCourseId() { return courseId; }
+    public void setCourseId(String courseId) { this.courseId = courseId; }
+    
+    public String getCourseName() { return courseName; }
+    public void setCourseName(String courseName) { this.courseName = courseName; }
+    
+    public String getWeeklySchedule() { return weeklySchedule; }
+    public void setWeeklySchedule(String weeklySchedule) { this.weeklySchedule = weeklySchedule; }
+    
+    public String getClassTime() { return classTime; }
+    public void setClassTime(String classTime) { this.classTime = classTime; }
+    
+    public String getInstructorName() { return instructorName; }
+    public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+    
+    public int getMaxStudents() { return maxStudents; }
+    public void setMaxStudents(int maxStudents) { this.maxStudents = maxStudents; }
+    
+    public double getCoursePrice() { return coursePrice; }
+    public void setCoursePrice(double coursePrice) { this.coursePrice = coursePrice; }
+    
+    public int getSessionDuration() { return sessionDuration; }
+    public void setSessionDuration(int sessionDuration) { this.sessionDuration = sessionDuration; }
+    
+    public String getCourseDescription() { return courseDescription; }
+    public void setCourseDescription(String courseDescription) { this.courseDescription = courseDescription; }
+    
+    public String getAdditionalNotes() { return additionalNotes; }
+    public void setAdditionalNotes(String additionalNotes) { this.additionalNotes = additionalNotes; }
+    
+    public String getNextClassDate() { return nextClassDate; }
+    public void setNextClassDate(String nextClassDate) { this.nextClassDate = nextClassDate; }
+    
+    public int getDatabaseId() { return databaseId; }
+    public void setDatabaseId(int databaseId) { this.databaseId = databaseId; }
+
+    // Legacy getters for backward compatibility
+    public String getId() { return courseId; }
+    public void setId(String id) { this.courseId = id; }
+    
+    public String getName() { return courseName; }
+    public void setName(String name) { this.courseName = name; }
+    
+    public String getSchedule() { return weeklySchedule; }
+    public void setSchedule(String schedule) { this.weeklySchedule = schedule; }
+    
+    public String getTime() { return classTime; }
+    public void setTime(String time) { this.classTime = time; }
+    
+    public String getTeacher() { return instructorName; }
+    public void setTeacher(String teacher) { this.instructorName = teacher; }
+    
+    public int getCapacity() { return maxStudents; }
+    public void setCapacity(int capacity) { this.maxStudents = capacity; }
+    
+    public double getPrice() { return coursePrice; }
+    public void setPrice(double price) { this.coursePrice = price; }
+    
+    public int getDuration() { return sessionDuration; }
+    public void setDuration(int duration) { this.sessionDuration = duration; }
+    
+    public String getDescription() { return courseDescription; }
+    public void setDescription(String description) { this.courseDescription = description; }
+    
+    public String getNote() { return additionalNotes; }
+    public void setNote(String note) { this.additionalNotes = note; }
+    
+    public String getUpcomingDate() { return nextClassDate; }
+    public void setUpcomingDate(String upcomingDate) { this.nextClassDate = upcomingDate; }
+    
+    public int getLocalId() { return databaseId; }
+    public void setLocalId(int localId) { this.databaseId = localId; }
+}

@@ -7,9 +7,10 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.Button;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -28,6 +29,7 @@ import androidx.room.Room;
 import com.example.universalyogaapp.db.AppDatabase;
 import com.example.universalyogaapp.db.CourseEntity;
 import com.example.universalyogaapp.db.ClassInstanceEntity;
+import com.example.universalyogaapp.dao.ClassInstanceDao;
 import com.example.universalyogaapp.model.ClassInstance;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -35,28 +37,45 @@ import java.util.Date;
 import java.util.Locale;
 
 public class CourseListActivity extends AppCompatActivity {
+    // UI Components
     private RecyclerView recyclerView;
     private CourseAdapter adapter;
     private List<Course> courseList;
     private List<Course> fullCourseList; // Store all for filtering
+    private MaterialButton buttonSync;
+
+    // Business logic components
     private FirebaseManager firebaseManager;
-    private TextView textViewStatsCourses, textViewStatsStudents, textViewStatsRevenue;
     private AppDatabase db;
-    private Button buttonSync;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_course_list);
 
-        db = Room.databaseBuilder(
-            getApplicationContext(),
-            AppDatabase.class,
-            "yoga-db"
-        ).allowMainThreadQueries()
-                         .fallbackToDestructiveMigration() // Add this line!
-        .build();
+        initializeDatabase();
+        initializeUserInterface();
+        setupEventListeners();
+        loadCourses();
+    }
 
+    /**
+     * Initialize database
+     */
+    private void initializeDatabase() {
+        db = Room.databaseBuilder(
+                        getApplicationContext(),
+                        AppDatabase.class,
+                        "yoga-db"
+                ).allowMainThreadQueries()
+                .fallbackToDestructiveMigration()
+                .build();
+    }
+
+    /**
+     * Initialize UI components
+     */
+    private void initializeUserInterface() {
         recyclerView = findViewById(R.id.recyclerViewCourses);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         courseList = new ArrayList<>();
@@ -64,11 +83,12 @@ public class CourseListActivity extends AppCompatActivity {
         adapter = new CourseAdapter();
         recyclerView.setAdapter(adapter);
         firebaseManager = new FirebaseManager();
-        textViewStatsCourses = findViewById(R.id.textViewStatsCourses);
-        textViewStatsStudents = findViewById(R.id.textViewStatsStudents);
-        textViewStatsRevenue = findViewById(R.id.textViewStatsRevenue);
-        loadCourses();
+    }
 
+    /**
+     * Setup event listeners
+     */
+    private void setupEventListeners() {
         adapter.setOnItemClickListener(new CourseAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(Course course) {
@@ -98,16 +118,19 @@ public class CourseListActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {}
         });
+
         buttonSync = findViewById(R.id.buttonSync);
         buttonSync.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                syncCoursesToFirebase();
-                syncClassInstancesToFirebase();
-                Toast.makeText(CourseListActivity.this, "Syncing data...", Toast.LENGTH_SHORT).show();
+                // Disable button and show loading state
+                buttonSync.setEnabled(false);
+                buttonSync.setIcon(ContextCompat.getDrawable(CourseListActivity.this, R.drawable.ic_sync));
+
+                // Perform sync operations
+                performDataSync();
             }
         });
-        syncCoursesToFirebase();
     }
 
     @Override
@@ -116,49 +139,49 @@ public class CourseListActivity extends AppCompatActivity {
         loadCourses();
     }
 
+    /**
+     * Load courses from database
+     */
     private void loadCourses() {
         courseList.clear();
         fullCourseList.clear();
         List<CourseEntity> entities = db.courseDao().getAllCourses();
-        int totalCourses = 0;
-        int totalStudents = 0;
-        double totalRevenueUSD = 0;
+
         for (CourseEntity entity : entities) {
             Course course = new Course(
-                entity.firebaseId,
-                entity.name,
-                entity.schedule,
-                entity.time,
-                entity.teacher,
-                entity.capacity,
-                entity.price,
-                entity.duration,
-                entity.description,
-                entity.note,
-                entity.upcomingDate,
-                entity.localId // truyền localId từ entity
+                    entity.getCloudDatabaseId(),
+                    entity.getCourseName(),
+                    entity.getWeeklySchedule(),
+                    entity.getClassTime(),
+                    entity.getInstructorName(),
+                    entity.getMaxStudents(),
+                    entity.getCoursePrice(),
+                    entity.getSessionDuration(),
+                    entity.getCourseDescription(),
+                    entity.getAdditionalNotes(),
+                    entity.getNextClassDate(),
+                    entity.getLocalDatabaseId()
             );
             courseList.add(course);
             fullCourseList.add(course);
-            totalCourses++;
-            totalStudents += entity.capacity;
-            totalRevenueUSD += entity.price * entity.capacity;
         }
-        textViewStatsCourses.setText(String.valueOf(totalCourses));
-        textViewStatsStudents.setText(String.valueOf(totalStudents));
-        textViewStatsRevenue.setText(formatCurrencyUSD(totalRevenueUSD) + " $");
-        adapter.setCourseList(courseList);
+
+        adapter.updateCourseList(courseList);
     }
 
+    /**
+     * Filter courses based on keyword
+     */
     private void filterCourses(String keyword) {
         List<Course> filtered = new ArrayList<>();
         String lowerKeyword = keyword.toLowerCase();
         SimpleDateFormat[] dateFormats = new SimpleDateFormat[] {
-            new SimpleDateFormat("yyyy-MM-dd", Locale.US),
-            new SimpleDateFormat("dd/MM/yyyy", Locale.US)
+                new SimpleDateFormat("yyyy-MM-dd", Locale.US),
+                new SimpleDateFormat("dd/MM/yyyy", Locale.US)
         };
         String dayOfWeek = null;
-        // Thử parse ngày
+
+        // Try to parse date
         for (SimpleDateFormat sdf : dateFormats) {
             try {
                 Date date = sdf.parse(keyword);
@@ -170,9 +193,10 @@ public class CourseListActivity extends AppCompatActivity {
                 }
             } catch (ParseException ignored) {}
         }
+
         for (Course course : fullCourseList) {
             boolean match = false;
-                            // If input is a date, filter by day of week
+            // If input is a date, filter by day of week
             if (dayOfWeek != null) {
                 match = course.getSchedule() != null && course.getSchedule().toLowerCase().contains(dayOfWeek.toLowerCase());
             } else {
@@ -200,49 +224,82 @@ public class CourseListActivity extends AppCompatActivity {
                 filtered.add(course);
             }
         }
-        adapter.setCourseList(filtered);
+        adapter.updateCourseList(filtered);
     }
 
-    private String formatCurrencyUSD(double value) {
-        return String.format("%,.2f", value);
-    }
-
+    /**
+     * Sync courses to Firebase
+     */
     public void syncCoursesToFirebase() {
         List<CourseEntity> unsynced = db.courseDao().getUnsyncedCourses();
         FirebaseManager firebaseManager = new FirebaseManager();
 
         for (CourseEntity entity : unsynced) {
             Course course = new Course(
-                null, entity.name, entity.schedule, entity.time, entity.teacher,
-                entity.capacity, entity.price, entity.duration, entity.description, entity.note, entity.upcomingDate, entity.localId
+                    null, entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
+                    entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
             );
-            firebaseManager.addCourse(course, (error, ref) -> {
+            firebaseManager.createNewCourse(course, (error, ref) -> {
                 if (error == null) {
-                    entity.isSynced = true;
-                    entity.firebaseId = ref.getKey();
-                    db.courseDao().update(entity);
+                    entity.setCloudSyncStatus(true);
+                    entity.setCloudDatabaseId(ref.getKey());
+                    db.courseDao().updateCourse(entity);
                 }
             });
         }
-        // Removed section to reload all data from Firebase to Room
     }
 
+    /**
+     * Sync class instances to Firebase
+     */
     public void syncClassInstancesToFirebase() {
         List<ClassInstanceEntity> unsynced = db.classInstanceDao().getUnsyncedInstances();
         FirebaseManager firebaseManager = new FirebaseManager();
+
         for (ClassInstanceEntity entity : unsynced) {
-            // Note: entity.courseId is localId, need to map to firebaseId if want to link correctly on cloud
+            // Note: entity.parentCourseId is localId, need to map to firebaseId if want to link correctly on cloud
             ClassInstance instance = new ClassInstance(
-                null, entity.firebaseId != null ? entity.firebaseId : String.valueOf(entity.courseId),
-                entity.date, entity.teacher, entity.note, entity.id
+                    null, entity.getCloudDatabaseId() != null ? entity.getCloudDatabaseId() : String.valueOf(entity.getParentCourseId()),
+                    entity.getClassDate(), entity.getAssignedInstructor(), entity.getClassNotes(), entity.getLocalDatabaseId()
             );
-            firebaseManager.addClassInstance(instance, (error, ref) -> {
+            firebaseManager.createNewClassInstance(instance, (error, ref) -> {
                 if (error == null) {
-                    entity.isSynced = true;
-                    entity.firebaseId = ref.getKey();
-                    db.classInstanceDao().update(entity);
+                    entity.setCloudSyncStatus(true);
+                    entity.setCloudDatabaseId(ref.getKey());
+                    db.classInstanceDao().updateClassInstance(entity);
                 }
             });
         }
     }
-} 
+
+    /**
+     * Perform data synchronization with visual feedback
+     */
+    private void performDataSync() {
+        Toast.makeText(CourseListActivity.this, "Syncing data...", Toast.LENGTH_SHORT).show();
+
+        // Get unsynced data counts
+        List<CourseEntity> unsyncedCourses = db.courseDao().getUnsyncedCourses();
+        List<ClassInstanceEntity> unsyncedInstances = db.classInstanceDao().getUnsyncedInstances();
+
+        int totalUnsynced = unsyncedCourses.size() + unsyncedInstances.size();
+
+        if (totalUnsynced == 0) {
+            Toast.makeText(CourseListActivity.this, "All data is already synced!", Toast.LENGTH_SHORT).show();
+            buttonSync.setEnabled(true);
+            return;
+        }
+
+        // Perform sync operations
+        syncCoursesToFirebase();
+        syncClassInstancesToFirebase();
+
+        // Re-enable button after a delay
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            buttonSync.setEnabled(true);
+            Toast.makeText(CourseListActivity.this, "Sync completed!", Toast.LENGTH_SHORT).show();
+            // Refresh the course list
+            loadCourses();
+        }, 2000); // 2 seconds delay
+    }
+}

@@ -16,16 +16,26 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            android:paddingTop="24dp"
             app:title="@string/course_details"
             app:titleTextColor="@color/white" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingTop="32dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp">
 
             <!-- Course Header Card -->
             <com.google.android.material.card.MaterialCardView
@@ -338,5 +348,7 @@
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
+
+    </ScrollView>
 
 </LinearLayout> 

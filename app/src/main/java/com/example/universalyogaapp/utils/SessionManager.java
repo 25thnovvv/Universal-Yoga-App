@@ -4,36 +4,70 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 public class SessionManager {
-    private static final String PREF_NAME = "YogaAppSession";
-    private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
-    private static final String KEY_USERNAME = "username";
+    // SharedPreferences configuration
+    private static final String SHARED_PREFERENCES_NAME = "YogaAppSession";
+    private static final String KEY_LOGIN_STATUS = "isLoggedIn";
+    private static final String KEY_CURRENT_USERNAME = "username";
 
-    private SharedPreferences sharedPreferences;
-    private SharedPreferences.Editor editor;
-    private Context context;
+    // SharedPreferences instances
+    private final SharedPreferences sharedPreferencesInstance;
+    private final SharedPreferences.Editor sharedPreferencesEditor;
+    private final Context applicationContext;
 
+    /**
+     * Constructor for SessionManager
+     */
     public SessionManager(Context context) {
-        this.context = context;
-        sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        editor = sharedPreferences.edit();
+        this.applicationContext = context;
+        sharedPreferencesInstance = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+        sharedPreferencesEditor = sharedPreferencesInstance.edit();
     }
 
+    /**
+     * Sets user login status and username
+     */
+    public void setUserLoginStatus(boolean isUserLoggedIn, String username) {
+        sharedPreferencesEditor.putBoolean(KEY_LOGIN_STATUS, isUserLoggedIn);
+        sharedPreferencesEditor.putString(KEY_CURRENT_USERNAME, username);
+        sharedPreferencesEditor.commit();
+    }
+
+    /**
+     * Checks if user is currently logged in
+     */
+    public boolean checkUserLoginStatus() {
+        return sharedPreferencesInstance.getBoolean(KEY_LOGIN_STATUS, false);
+    }
+
+    /**
+     * Gets current logged in username
+     */
+    public String getCurrentUsername() {
+        return sharedPreferencesInstance.getString(KEY_CURRENT_USERNAME, "");
+    }
+
+    /**
+     * Logs out user by clearing all session data
+     */
+    public void performUserLogout() {
+        sharedPreferencesEditor.clear();
+        sharedPreferencesEditor.commit();
+    }
+
+    // Legacy methods for backward compatibility
     public void setLogin(boolean isLoggedIn, String username) {
-        editor.putBoolean(KEY_IS_LOGGED_IN, isLoggedIn);
-        editor.putString(KEY_USERNAME, username);
-        editor.commit();
+        setUserLoginStatus(isLoggedIn, username);
     }
 
     public boolean isLoggedIn() {
-        return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false);
+        return checkUserLoginStatus();
     }
 
     public String getUsername() {
-        return sharedPreferences.getString(KEY_USERNAME, "");
+        return getCurrentUsername();
     }
 
     public void logout() {
-        editor.clear();
-        editor.commit();
+        performUserLogout();
     }
-} 
+}

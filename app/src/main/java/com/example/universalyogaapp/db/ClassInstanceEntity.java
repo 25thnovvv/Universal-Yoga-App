@@ -6,40 +6,77 @@ import androidx.room.Index;
 
 @Entity(tableName = "class_instances")
 public class ClassInstanceEntity {
+    // Primary key for local database
     @PrimaryKey(autoGenerate = true)
-    public int id;
+    public int localDatabaseId;
 
-    public String courseId; // Liên kết tới CourseEntity (firebaseId)
-    public String firebaseId; // id trên cloud, có thể null nếu chưa sync
-    public String date; // Ngày học cụ thể (yyyy-MM-dd)
-    public String teacher;
-    public String note;
-    public boolean isSynced;
+    // Relationships and synchronization
+    public String parentCourseId;
+    public String cloudDatabaseId;
+    public boolean cloudSyncStatus;
 
+    // Class instance details
+    public String classDate;
+    public String assignedInstructor;
+    public String classNotes;
+
+    // Default constructor
     public ClassInstanceEntity() {}
 
-    public ClassInstanceEntity(int id, String courseId, String firebaseId, String date, String teacher, String note, boolean isSynced) {
-        this.id = id;
-        this.courseId = courseId;
-        this.firebaseId = firebaseId;
-        this.date = date;
-        this.teacher = teacher;
-        this.note = note;
-        this.isSynced = isSynced;
+    // Comprehensive constructor
+    public ClassInstanceEntity(int localDatabaseId, String parentCourseId, String cloudDatabaseId, 
+                              String classDate, String assignedInstructor, String classNotes, 
+                              boolean cloudSyncStatus) {
+        this.localDatabaseId = localDatabaseId;
+        this.parentCourseId = parentCourseId;
+        this.cloudDatabaseId = cloudDatabaseId;
+        this.classDate = classDate;
+        this.assignedInstructor = assignedInstructor;
+        this.classNotes = classNotes;
+        this.cloudSyncStatus = cloudSyncStatus;
     }
 
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
-    public String getCourseId() { return courseId; }
-    public void setCourseId(String courseId) { this.courseId = courseId; }
-    public String getFirebaseId() { return firebaseId; }
-    public void setFirebaseId(String firebaseId) { this.firebaseId = firebaseId; }
-    public String getDate() { return date; }
-    public void setDate(String date) { this.date = date; }
-    public String getTeacher() { return teacher; }
-    public void setTeacher(String teacher) { this.teacher = teacher; }
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
-    public boolean isSynced() { return isSynced; }
-    public void setSynced(boolean synced) { isSynced = synced; }
-} 
+    // Primary getters and setters
+    public int getLocalDatabaseId() { return localDatabaseId; }
+    public void setLocalDatabaseId(int localDatabaseId) { this.localDatabaseId = localDatabaseId; }
+
+    public String getParentCourseId() { return parentCourseId; }
+    public void setParentCourseId(String parentCourseId) { this.parentCourseId = parentCourseId; }
+
+    public String getCloudDatabaseId() { return cloudDatabaseId; }
+    public void setCloudDatabaseId(String cloudDatabaseId) { this.cloudDatabaseId = cloudDatabaseId; }
+
+    public String getClassDate() { return classDate; }
+    public void setClassDate(String classDate) { this.classDate = classDate; }
+
+    public String getAssignedInstructor() { return assignedInstructor; }
+    public void setAssignedInstructor(String assignedInstructor) { this.assignedInstructor = assignedInstructor; }
+
+    public String getClassNotes() { return classNotes; }
+    public void setClassNotes(String classNotes) { this.classNotes = classNotes; }
+
+    public boolean getCloudSyncStatus() { return cloudSyncStatus; }
+    public void setCloudSyncStatus(boolean cloudSyncStatus) { this.cloudSyncStatus = cloudSyncStatus; }
+
+    // Legacy getters for backward compatibility
+    public int getId() { return localDatabaseId; }
+    public void setId(int id) { this.localDatabaseId = id; }
+
+    public String getCourseId() { return parentCourseId; }
+    public void setCourseId(String courseId) { this.parentCourseId = courseId; }
+
+    public String getFirebaseId() { return cloudDatabaseId; }
+    public void setFirebaseId(String firebaseId) { this.cloudDatabaseId = firebaseId; }
+
+    public String getDate() { return classDate; }
+    public void setDate(String date) { this.classDate = date; }
+
+    public String getTeacher() { return assignedInstructor; }
+    public void setTeacher(String teacher) { this.assignedInstructor = teacher; }
+
+    public String getNote() { return classNotes; }
+    public void setNote(String note) { this.classNotes = note; }
+
+    public boolean isSynced() { return cloudSyncStatus; }
+    public void setSynced(boolean synced) { this.cloudSyncStatus = synced; }
+}

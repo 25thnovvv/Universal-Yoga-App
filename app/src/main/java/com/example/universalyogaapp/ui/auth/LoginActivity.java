@@ -1,3 +1,4 @@
+
 package com.example.universalyogaapp.ui.auth;
 
 import android.content.Intent;
@@ -16,80 +17,123 @@ import com.google.android.material.textfield.TextInputEditText;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private TextInputEditText editTextUsername, editTextPassword;
-    private MaterialButton buttonLogin;
-    private View progressBar;
-    private SessionManager sessionManager;
+    // UI Components
+    private TextInputEditText usernameInputField;
+    private TextInputEditText passwordInputField;
+    private MaterialButton loginButton;
+    private View loadingIndicator;
+    
+    // Business logic components
+    private SessionManager sessionManagerInstance;
 
-    // Fixed admin credentials
+    // Authentication credentials
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "admin";
+    private static final int NETWORK_DELAY_SIMULATION = 1000; // 1 second
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        initViews();
-        setupClickListeners();
+        initializeUserInterface();
+        setupEventListeners();
     }
 
-    private void initViews() {
-        editTextUsername = findViewById(R.id.editTextUsername);
-        editTextPassword = findViewById(R.id.editTextPassword);
-        buttonLogin = findViewById(R.id.buttonLogin);
-        progressBar = findViewById(R.id.progressBar);
-        sessionManager = new SessionManager(this);
+    /**
+     * Initialize UI components
+     */
+    private void initializeUserInterface() {
+        usernameInputField = findViewById(R.id.editTextUsername);
+        passwordInputField = findViewById(R.id.editTextPassword);
+        loginButton = findViewById(R.id.buttonLogin);
+        loadingIndicator = findViewById(R.id.progressBar);
+        sessionManagerInstance = new SessionManager(this);
     }
 
-    private void setupClickListeners() {
-        buttonLogin.setOnClickListener(v -> performLogin());
+    /**
+     * Setup event listeners
+     */
+    private void setupEventListeners() {
+        loginButton.setOnClickListener(v -> executeLoginProcess());
     }
 
-    private void performLogin() {
-        String username = editTextUsername.getText().toString().trim();
-        String password = editTextPassword.getText().toString().trim();
+    /**
+     * Execute login process
+     */
+    private void executeLoginProcess() {
+        String enteredUsername = usernameInputField.getText().toString().trim();
+        String enteredPassword = passwordInputField.getText().toString().trim();
 
-        // Validate input
-        if (TextUtils.isEmpty(username)) {
-            editTextUsername.setError("Please enter username");
-            editTextUsername.requestFocus();
+        if (!validateInputFields(enteredUsername, enteredPassword)) {
             return;
+        }
+
+        displayLoadingState(true);
+
+        // Simulate network request
+        loginButton.postDelayed(() -> {
+            processAuthenticationResult(enteredUsername, enteredPassword);
+        }, NETWORK_DELAY_SIMULATION);
+    }
+
+    /**
+     * Validate input fields
+     */
+    private boolean validateInputFields(String username, String password) {
+        if (TextUtils.isEmpty(username)) {
+            usernameInputField.setError("Please enter username");
+            usernameInputField.requestFocus();
+            return false;
         }
 
         if (TextUtils.isEmpty(password)) {
-            editTextPassword.setError("Please enter password");
-            editTextPassword.requestFocus();
-            return;
+            passwordInputField.setError("Please enter password");
+            passwordInputField.requestFocus();
+            return false;
         }
 
-        // Show progress
-        showProgress(true);
-
-        // Simulate network delay
-        buttonLogin.postDelayed(() -> {
-            // Check credentials
-            if (ADMIN_USERNAME.equals(username) && ADMIN_PASSWORD.equals(password)) {
-                // Login successful
-                showProgress(false);
-                sessionManager.setLogin(true, username);
-                Toast.makeText(LoginActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
-                
-                // Navigate to MainActivity
-                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
-            } else {
-                // Login failed
-                showProgress(false);
-                Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
-            }
-        }, 1000); // 1 second delay to simulate network request
+        return true;
     }
 
-    private void showProgress(boolean show) {
-        progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
-        buttonLogin.setEnabled(!show);
+    /**
+     * Process authentication result
+     */
+    private void processAuthenticationResult(String username, String password) {
+        if (ADMIN_USERNAME.equals(username) && ADMIN_PASSWORD.equals(password)) {
+            handleSuccessfulLogin(username);
+        } else {
+            handleFailedLogin();
+        }
+    }
+
+    /**
+     * Handle successful login
+     */
+    private void handleSuccessfulLogin(String username) {
+        displayLoadingState(false);
+        sessionManagerInstance.setLogin(true, username);
+        Toast.makeText(LoginActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
+
+        Intent mainActivityIntent = new Intent(LoginActivity.this, MainActivity.class);
+        mainActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(mainActivityIntent);
+        finish();
+    }
+
+    /**
+     * Handle failed login
+     */
+    private void handleFailedLogin() {
+        displayLoadingState(false);
+        Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Display loading state
+     */
+    private void displayLoadingState(boolean isLoading) {
+        loadingIndicator.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        loginButton.setEnabled(!isLoading);
     }
 } 

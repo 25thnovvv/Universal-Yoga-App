@@ -24,9 +24,12 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
 public class AddEditClassInstanceActivity extends AppCompatActivity {
+    // UI Components
     private EditText editTextDate, editTextTeacher, editTextNote;
     private Button buttonSave;
-    private String courseId, courseSchedule; // courseSchedule: ví dụ "Tuesday"
+
+    // Business logic components
+    private String courseId, courseSchedule; // courseSchedule: example "Tuesday"
     private FirebaseManager firebaseManager;
     private ClassInstance editingInstance;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
@@ -37,33 +40,40 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_class_instance);
 
+        initializeDatabase();
+        initializeUserInterface();
+        setupEventListeners();
+        loadInstanceData();
+    }
+
+    /**
+     * Initialize database
+     */
+    private void initializeDatabase() {
+        db = androidx.room.Room.databaseBuilder(
+                        getApplicationContext(),
+                        AppDatabase.class,
+                        "yoga-db"
+                ).allowMainThreadQueries()
+                .fallbackToDestructiveMigration()
+                .build();
+    }
+
+    /**
+     * Initialize UI components
+     */
+    private void initializeUserInterface() {
         editTextDate = findViewById(R.id.editTextDate);
         editTextTeacher = findViewById(R.id.editTextTeacher);
         editTextNote = findViewById(R.id.editTextNote);
         buttonSave = findViewById(R.id.buttonSaveInstance);
         firebaseManager = new FirebaseManager();
+    }
 
-        db = androidx.room.Room.databaseBuilder(
-            getApplicationContext(),
-            AppDatabase.class,
-            "yoga-db"
-        ).allowMainThreadQueries()
-         .fallbackToDestructiveMigration()
-        .build();
-
-        courseId = getIntent().getStringExtra("course_id"); // Ensure this value is firebaseId
-        courseSchedule = getIntent().getStringExtra("course_schedule"); // example "Tuesday"
-        editingInstance = (ClassInstance) getIntent().getSerializableExtra("class_instance");
-
-        if (editingInstance != null) {
-            setTitle("Edit Class Session");
-            editTextDate.setText(editingInstance.getDate());
-            editTextTeacher.setText(editingInstance.getTeacher());
-            editTextNote.setText(editingInstance.getNote());
-        } else {
-            setTitle("Add Class Session");
-        }
-
+    /**
+     * Setup event listeners
+     */
+    private void setupEventListeners() {
         editTextDate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -79,6 +89,27 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Load instance data
+     */
+    private void loadInstanceData() {
+        courseId = getIntent().getStringExtra("course_id"); // Ensure this value is firebaseId
+        courseSchedule = getIntent().getStringExtra("course_schedule"); // example "Tuesday"
+        editingInstance = (ClassInstance) getIntent().getSerializableExtra("class_instance");
+
+        if (editingInstance != null) {
+            setTitle("Edit Class Session");
+            editTextDate.setText(editingInstance.getDate());
+            editTextTeacher.setText(editingInstance.getTeacher());
+            editTextNote.setText(editingInstance.getNote());
+        } else {
+            setTitle("Add Class Session");
+        }
+    }
+
+    /**
+     * Show date picker dialog
+     */
     private void showDatePicker() {
         Calendar calendar = Calendar.getInstance();
         DatePickerDialog dialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
@@ -91,12 +122,18 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    /**
+     * Check network availability
+     */
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
+    /**
+     * Save class instance
+     */
     private void saveInstance() {
         String date = editTextDate.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
@@ -114,20 +151,21 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         }
 
         if (editingInstance == null) {
-            // Add new
+            // Add new instance
             ClassInstanceEntity entity = new ClassInstanceEntity();
-            entity.firebaseId = null;
-            entity.courseId = courseId;
-            entity.date = date;
-            entity.teacher = teacher;
-            entity.note = note;
+            entity.setCloudDatabaseId(null);
+            entity.setParentCourseId(courseId);
+            entity.setClassDate(date);
+            entity.setAssignedInstructor(teacher);
+            entity.setClassNotes(note);
+            
             if (isNetworkAvailable()) {
-                entity.isSynced = true;
-                long localId = db.classInstanceDao().insert(entity);
+                entity.setCloudSyncStatus(true);
+                long localId = db.classInstanceDao().insertClassInstance(entity);
                 ClassInstance instance = new ClassInstance(
-                    null, courseId, date, teacher, note, (int) localId
+                        null, courseId, date, teacher, note, (int) localId
                 );
-                firebaseManager.addClassInstance(instance, (error, ref) -> {
+                firebaseManager.createNewClassInstance(instance, (error, ref) -> {
                     if (error == null) {
                         db.classInstanceDao().markInstanceAsSynced((int) localId, ref.getKey());
                         runOnUiThread(() -> {
@@ -142,27 +180,28 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
                     }
                 });
             } else {
-                entity.isSynced = false;
-                db.classInstanceDao().insert(entity);
+                entity.setCloudSyncStatus(false);
+                db.classInstanceDao().insertClassInstance(entity);
                 Toast.makeText(this, "Class session saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } else {
-            // Sửa
-            ClassInstanceEntity entity = db.classInstanceDao().getInstanceByFirebaseId(editingInstance.getId());
+            // Edit existing instance
+            ClassInstanceEntity entity = db.classInstanceDao().getInstanceByCloudId(editingInstance.getId());
             if (entity != null) {
-                entity.date = date;
-                entity.teacher = teacher;
-                entity.note = note;
+                entity.setClassDate(date);
+                entity.setAssignedInstructor(teacher);
+                entity.setClassNotes(note);
+                
                 if (isNetworkAvailable()) {
-                    entity.isSynced = true;
-                    db.classInstanceDao().update(entity);
+                    entity.setCloudSyncStatus(true);
+                    db.classInstanceDao().updateClassInstance(entity);
                     ClassInstance instance = new ClassInstance(
-                        entity.firebaseId, entity.courseId, date, teacher, note, entity.id
+                            entity.getCloudDatabaseId(), entity.getParentCourseId(), date, teacher, note, entity.getLocalDatabaseId()
                     );
-                    firebaseManager.updateClassInstance(instance, (error, ref) -> {
+                    firebaseManager.updateExistingClassInstance(instance, (error, ref) -> {
                         if (error == null) {
-                            db.classInstanceDao().markInstanceAsSynced(entity.id, entity.firebaseId);
+                            db.classInstanceDao().markInstanceAsSynced(entity.getLocalDatabaseId(), entity.getCloudDatabaseId());
                             runOnUiThread(() -> {
                                 Toast.makeText(AddEditClassInstanceActivity.this, "Class session updated and synced!", Toast.LENGTH_SHORT).show();
                                 finish();
@@ -175,8 +214,8 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
                         }
                     });
                 } else {
-                    entity.isSynced = false;
-                    db.classInstanceDao().update(entity);
+                    entity.setCloudSyncStatus(false);
+                    db.classInstanceDao().updateClassInstance(entity);
                     Toast.makeText(this, "Class session updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -184,7 +223,9 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         }
     }
 
-            // Check if date matches course schedule
+    /**
+     * Check if date matches course schedule
+     */
     private boolean isDateMatchSchedule(String dateStr, String schedule) {
         try {
             Date date = sdf.parse(dateStr);
@@ -198,4 +239,4 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
             return false;
         }
     }
-} 
+}

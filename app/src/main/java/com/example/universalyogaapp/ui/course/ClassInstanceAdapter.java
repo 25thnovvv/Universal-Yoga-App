@@ -11,57 +11,94 @@ import com.example.universalyogaapp.R;
 import com.example.universalyogaapp.model.ClassInstance;
 import java.util.List;
 
-public class ClassInstanceAdapter extends RecyclerView.Adapter<ClassInstanceAdapter.ViewHolder> {
+public class ClassInstanceAdapter extends RecyclerView.Adapter<ClassInstanceAdapter.ClassInstanceViewHolder> {
+    
+    // Data management
+    private List<ClassInstance> classInstanceDataList;
+    private final OnInstanceActionListener actionListener;
+
+    // Interface for instance actions
     public interface OnInstanceActionListener {
         void onEdit(ClassInstance instance);
         void onDelete(ClassInstance instance);
     }
 
-    private List<ClassInstance> instanceList;
-    private final OnInstanceActionListener listener;
-
+    /**
+     * Constructor
+     */
     public ClassInstanceAdapter(List<ClassInstance> instanceList, OnInstanceActionListener listener) {
-        this.instanceList = instanceList;
-        this.listener = listener;
+        this.classInstanceDataList = instanceList;
+        this.actionListener = listener;
     }
 
-    public void setInstanceList(List<ClassInstance> list) {
-        this.instanceList = list;
+    /**
+     * Update instance data list
+     */
+    public void updateInstanceList(List<ClassInstance> list) {
+        this.classInstanceDataList = list;
         notifyDataSetChanged();
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_class_instance, parent, false);
-        return new ViewHolder(view);
+    public ClassInstanceViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_class_instance, parent, false);
+        return new ClassInstanceViewHolder(itemView);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        ClassInstance instance = instanceList.get(position);
-        holder.textViewDate.setText(instance.getDate());
-        holder.textViewTeacher.setText("Teacher: " + (instance.getTeacher() != null ? instance.getTeacher() : ""));
-        holder.textViewNote.setText("Note: " + (instance.getNote() != null ? instance.getNote() : ""));
-        holder.buttonEdit.setOnClickListener(v -> listener.onEdit(instance));
-        holder.buttonDelete.setOnClickListener(v -> listener.onDelete(instance));
+    public void onBindViewHolder(@NonNull ClassInstanceViewHolder holder, int position) {
+        ClassInstance currentInstance = classInstanceDataList.get(position);
+        holder.bindInstanceData(currentInstance);
+        
+        holder.editButton.setOnClickListener(v -> actionListener.onEdit(currentInstance));
+        holder.deleteButton.setOnClickListener(v -> actionListener.onDelete(currentInstance));
     }
 
     @Override
     public int getItemCount() {
-        return instanceList != null ? instanceList.size() : 0;
+        return classInstanceDataList != null ? classInstanceDataList.size() : 0;
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textViewDate, textViewTeacher, textViewNote;
-        Button buttonEdit, buttonDelete;
-        public ViewHolder(@NonNull View itemView) {
+    /**
+     * ViewHolder class for class instance items
+     */
+    public static class ClassInstanceViewHolder extends RecyclerView.ViewHolder {
+        // UI Components
+        private TextView dateField;
+        private TextView teacherField;
+        private TextView noteField;
+        private Button editButton;
+        private Button deleteButton;
+
+        public ClassInstanceViewHolder(@NonNull View itemView) {
             super(itemView);
-            textViewDate = itemView.findViewById(R.id.textViewDate);
-            textViewTeacher = itemView.findViewById(R.id.textViewTeacher);
-            textViewNote = itemView.findViewById(R.id.textViewNote);
-            buttonEdit = itemView.findViewById(R.id.buttonEditInstance);
-            buttonDelete = itemView.findViewById(R.id.buttonDeleteInstance);
+            initializeViews(itemView);
+        }
+
+        /**
+         * Initialize view references
+         */
+        private void initializeViews(View itemView) {
+            dateField = itemView.findViewById(R.id.textViewDate);
+            teacherField = itemView.findViewById(R.id.textViewTeacher);
+            noteField = itemView.findViewById(R.id.textViewNote);
+            editButton = itemView.findViewById(R.id.buttonEditInstance);
+            deleteButton = itemView.findViewById(R.id.buttonDeleteInstance);
+        }
+
+        /**
+         * Bind instance data to views
+         */
+        public void bindInstanceData(ClassInstance instance) {
+            dateField.setText(instance.getDate());
+            teacherField.setText("Teacher: " + (instance.getTeacher() != null ? instance.getTeacher() : ""));
+            noteField.setText("Note: " + (instance.getNote() != null ? instance.getNote() : ""));
         }
     }
-} 
+
+    // Legacy methods for backward compatibility
+    public void setInstanceList(List<ClassInstance> list) {
+        updateInstanceList(list);
+    }
+}

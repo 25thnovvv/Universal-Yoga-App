@@ -35,9 +35,12 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
 public class AddEditCourseActivity extends AppCompatActivity {
+    // UI Components
     private TextInputEditText editTextName, editTextTime, editTextTeacher, editTextCapacity, editTextPrice, editTextDuration, editTextDescription, editTextNote;
     private ChipGroup chipGroupSchedule;
     private Button buttonSave;
+
+    // Business logic components
     private FirebaseManager firebaseManager;
     private Course editingCourse;
     private String courseId;
@@ -48,17 +51,47 @@ public class AddEditCourseActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_course);
 
-        db = Room.databaseBuilder(
-            getApplicationContext(),
-            AppDatabase.class,
-            "yoga-db"
-        ).allowMainThreadQueries()
-                         .fallbackToDestructiveMigration() // Add this line!
-        .build();
+        initializeDatabase();
+        initializeUserInterface();
+        setupEventListeners();
+        loadCourseData();
+    }
 
+    /**
+     * Initialize database
+     */
+    private void initializeDatabase() {
+        db = Room.databaseBuilder(
+                        getApplicationContext(),
+                        AppDatabase.class,
+                        "yoga-db"
+                ).allowMainThreadQueries()
+                .fallbackToDestructiveMigration()
+                .build();
+    }
+
+    /**
+     * Initialize UI components
+     */
+    private void initializeUserInterface() {
         editTextName = findViewById(R.id.editTextName);
         chipGroupSchedule = findViewById(R.id.chipGroupSchedule);
         editTextTime = findViewById(R.id.editTextTime);
+        editTextTeacher = findViewById(R.id.editTextTeacher);
+        editTextCapacity = findViewById(R.id.editTextCapacity);
+        editTextPrice = findViewById(R.id.editTextPrice);
+        editTextDuration = findViewById(R.id.editTextDuration);
+        editTextDescription = findViewById(R.id.editTextDescription);
+        editTextNote = findViewById(R.id.editTextNote);
+        buttonSave = findViewById(R.id.buttonSave);
+
+        firebaseManager = new FirebaseManager();
+    }
+
+    /**
+     * Setup event listeners
+     */
+    private void setupEventListeners() {
         editTextTime.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -73,23 +106,6 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 }
             }
         });
-        editTextTeacher = findViewById(R.id.editTextTeacher);
-        editTextCapacity = findViewById(R.id.editTextCapacity);
-        editTextPrice = findViewById(R.id.editTextPrice);
-        editTextDuration = findViewById(R.id.editTextDuration);
-        editTextDescription = findViewById(R.id.editTextDescription);
-        editTextNote = findViewById(R.id.editTextNote);
-        buttonSave = findViewById(R.id.buttonSave);
-
-        firebaseManager = new FirebaseManager();
-
-        courseId = getIntent().getStringExtra("course_id");
-        if (courseId != null) {
-            setTitle("Edit Course");
-            loadCourse(courseId);
-        } else {
-            setTitle("Add New Course");
-        }
 
         buttonSave.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -99,8 +115,24 @@ public class AddEditCourseActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Load course data
+     */
+    private void loadCourseData() {
+        courseId = getIntent().getStringExtra("course_id");
+        if (courseId != null) {
+            setTitle("Edit Course");
+            loadCourse(courseId);
+        } else {
+            setTitle("Add New Course");
+        }
+    }
+
+    /**
+     * Load course from Firebase
+     */
     private void loadCourse(String id) {
-        firebaseManager.getCourseById(id, new ValueEventListener() {
+        firebaseManager.fetchCourseById(id, new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 editingCourse = snapshot.getValue(Course.class);
@@ -116,6 +148,9 @@ public class AddEditCourseActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Fill course data into UI
+     */
     private void fillCourseData(Course course) {
         editTextName.setText(course.getName());
 
@@ -130,7 +165,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 }
             }
         }
-        
+
         editTextTime.setText(course.getTime());
         editTextTeacher.setText(course.getTeacher());
         editTextCapacity.setText(String.valueOf(course.getCapacity()));
@@ -140,12 +175,18 @@ public class AddEditCourseActivity extends AppCompatActivity {
         editTextNote.setText(course.getNote());
     }
 
+    /**
+     * Check network availability
+     */
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
+    /**
+     * Show confirmation dialog
+     */
     private void showConfirmDialog() {
         String name = editTextName.getText().toString().trim();
         List<String> selectedChips = new java.util.ArrayList<>();
@@ -154,7 +195,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
             selectedChips.add(chip.getText().toString());
         }
         String schedule = String.join(",", selectedChips);
-        String upcomingDate = DateUtils.getNextUpcomingDate(schedule);
+        String upcomingDate = DateUtils.calculateNextUpcomingDate(schedule);
         String time = editTextTime.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
         String capacityStr = editTextCapacity.getText().toString().trim();
@@ -162,12 +203,14 @@ public class AddEditCourseActivity extends AppCompatActivity {
         String durationStr = editTextDuration.getText().toString().trim();
         String description = editTextDescription.getText().toString().trim();
         String note = editTextNote.getText().toString().trim();
+        
         if (TextUtils.isEmpty(name) || TextUtils.isEmpty(schedule) || TextUtils.isEmpty(teacher) ||
                 TextUtils.isEmpty(capacityStr) || TextUtils.isEmpty(priceStr) ||
                 TextUtils.isEmpty(durationStr)) {
             Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
             return;
         }
+        
         StringBuilder message = new StringBuilder();
         message.append("Name: ").append(name).append("\n");
         message.append("Schedule: ").append(schedule).append("\n");
@@ -178,14 +221,18 @@ public class AddEditCourseActivity extends AppCompatActivity {
         message.append("Duration: ").append(durationStr).append("\n");
         message.append("Description: ").append(description).append("\n");
         message.append("Note: ").append(note).append("\n");
+        
         new AlertDialog.Builder(this)
-            .setTitle("Confirm Course Details")
-            .setMessage(message.toString())
-            .setPositiveButton("Confirm", (dialog, which) -> saveCourse())
-            .setNegativeButton("Edit", null)
-            .show();
+                .setTitle("Confirm Course Details")
+                .setMessage(message.toString())
+                .setPositiveButton("Confirm", (dialog, which) -> saveCourse())
+                .setNegativeButton("Edit", null)
+                .show();
     }
 
+    /**
+     * Save course to database and Firebase
+     */
     private void saveCourse() {
         String name = editTextName.getText().toString().trim();
         List<String> selectedChips = new java.util.ArrayList<>();
@@ -194,7 +241,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
             selectedChips.add(chip.getText().toString());
         }
         String schedule = String.join(",", selectedChips);
-        String upcomingDate = DateUtils.getNextUpcomingDate(schedule);
+        String upcomingDate = DateUtils.calculateNextUpcomingDate(schedule);
         String time = editTextTime.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
         String capacityStr = editTextCapacity.getText().toString().trim();
@@ -209,31 +256,31 @@ public class AddEditCourseActivity extends AppCompatActivity {
         if (editingCourse != null) {
             // EDITING EXISTING COURSE
             Course course = new Course(
-                editingCourse.getId(), name, schedule, time, teacher,
-                capacity, price, duration, description, note, upcomingDate, editingCourse.getLocalId()
+                    editingCourse.getId(), name, schedule, time, teacher,
+                    capacity, price, duration, description, note, upcomingDate, editingCourse.getLocalId()
             );
-            
+
             if (isNetworkAvailable()) {
                 // ONLINE: Update Firebase first, then local
                 DatabaseReference.CompletionListener listener = (error, ref) -> {
                     if (error == null) {
                         // Update local database
                         CourseEntity entity = new CourseEntity();
-                        entity.localId = editingCourse.getLocalId();
-                        entity.firebaseId = editingCourse.getId();
-                        entity.name = name;
-                        entity.schedule = schedule;
-                        entity.time = time;
-                        entity.teacher = teacher;
-                        entity.capacity = capacity;
-                        entity.price = price;
-                        entity.duration = duration;
-                        entity.description = description;
-                        entity.note = note;
-                        entity.upcomingDate = upcomingDate;
-                        entity.isSynced = true;
-                        
-                        db.courseDao().update(entity);
+                        entity.setLocalDatabaseId(editingCourse.getLocalId());
+                        entity.setCloudDatabaseId(editingCourse.getId());
+                        entity.setCourseName(name);
+                        entity.setWeeklySchedule(schedule);
+                        entity.setClassTime(time);
+                        entity.setInstructorName(teacher);
+                        entity.setMaxStudents(capacity);
+                        entity.setCoursePrice(price);
+                        entity.setSessionDuration(duration);
+                        entity.setCourseDescription(description);
+                        entity.setAdditionalNotes(note);
+                        entity.setNextClassDate(upcomingDate);
+                        entity.setCloudSyncStatus(true);
+
+                        db.courseDao().updateCourse(entity);
                         runOnUiThread(() -> {
                             Toast.makeText(AddEditCourseActivity.this, "Course updated and synced!", Toast.LENGTH_SHORT).show();
                             finish();
@@ -245,49 +292,49 @@ public class AddEditCourseActivity extends AppCompatActivity {
                         });
                     }
                 };
-                firebaseManager.updateCourse(course, listener);
+                firebaseManager.updateExistingCourse(course, listener);
             } else {
                 // OFFLINE: Update local only
                 CourseEntity entity = new CourseEntity();
-                entity.localId = editingCourse.getLocalId();
-                entity.firebaseId = editingCourse.getId();
-                entity.name = name;
-                entity.schedule = schedule;
-                entity.time = time;
-                entity.teacher = teacher;
-                entity.capacity = capacity;
-                entity.price = price;
-                entity.duration = duration;
-                entity.description = description;
-                entity.note = note;
-                entity.upcomingDate = upcomingDate;
-                entity.isSynced = false;
-                
-                db.courseDao().update(entity);
+                entity.setLocalDatabaseId(editingCourse.getLocalId());
+                entity.setCloudDatabaseId(editingCourse.getId());
+                entity.setCourseName(name);
+                entity.setWeeklySchedule(schedule);
+                entity.setClassTime(time);
+                entity.setInstructorName(teacher);
+                entity.setMaxStudents(capacity);
+                entity.setCoursePrice(price);
+                entity.setSessionDuration(duration);
+                entity.setCourseDescription(description);
+                entity.setAdditionalNotes(note);
+                entity.setNextClassDate(upcomingDate);
+                entity.setCloudSyncStatus(false);
+
+                db.courseDao().updateCourse(entity);
                 Toast.makeText(AddEditCourseActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } else {
             // CREATING NEW COURSE
             CourseEntity entity = new CourseEntity();
-            entity.name = name;
-            entity.schedule = schedule;
-            entity.time = time;
-            entity.teacher = teacher;
-            entity.capacity = capacity;
-            entity.price = price;
-            entity.duration = duration;
-            entity.description = description;
-            entity.note = note;
-            entity.upcomingDate = upcomingDate;
-            
+            entity.setCourseName(name);
+            entity.setWeeklySchedule(schedule);
+            entity.setClassTime(time);
+            entity.setInstructorName(teacher);
+            entity.setMaxStudents(capacity);
+            entity.setCoursePrice(price);
+            entity.setSessionDuration(duration);
+            entity.setCourseDescription(description);
+            entity.setAdditionalNotes(note);
+            entity.setNextClassDate(upcomingDate);
+
             if (isNetworkAvailable()) {
-                // ONLINE: Lưu local với isSynced=true, đẩy lên Firebase
-                entity.isSynced = true;
-                long localId = db.courseDao().insert(entity);
+                // ONLINE: Save local with isSynced=true, push to Firebase
+                entity.setCloudSyncStatus(true);
+                long localId = db.courseDao().insertCourse(entity);
                 Course course = new Course(
-                    entity.firebaseId, entity.name, entity.schedule, entity.time, entity.teacher,
-                    entity.capacity, entity.price, entity.duration, entity.description, entity.note, entity.upcomingDate, entity.localId
+                        entity.getCloudDatabaseId(), entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
+                        entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
                 );
                 DatabaseReference.CompletionListener listener = (error, ref) -> {
                     if (error == null) {
@@ -303,22 +350,25 @@ public class AddEditCourseActivity extends AppCompatActivity {
                         });
                     }
                 };
-                if (entity.firebaseId == null || entity.firebaseId.isEmpty()) {
-                    firebaseManager.addCourse(course, listener);
+                if (entity.getCloudDatabaseId() == null || entity.getCloudDatabaseId().isEmpty()) {
+                    firebaseManager.createNewCourse(course, listener);
                 } else {
-                    course.setId(entity.firebaseId);
-                    firebaseManager.updateCourse(course, listener);
+                    course.setId(entity.getCloudDatabaseId());
+                    firebaseManager.updateExistingCourse(course, listener);
                 }
             } else {
-                // OFFLINE: Lưu local với isSynced=false
-                entity.isSynced = false;
-                db.courseDao().insert(entity);
+                // OFFLINE: Save local with isSynced=false
+                entity.setCloudSyncStatus(false);
+                db.courseDao().insertCourse(entity);
                 Toast.makeText(AddEditCourseActivity.this, "Course saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         }
     }
 
+    /**
+     * Show time picker dialog
+     */
     private void showTimePicker() {
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -329,4 +379,4 @@ public class AddEditCourseActivity extends AppCompatActivity {
         }, hour, minute, true);
         timePickerDialog.show();
     }
-} 
+}
