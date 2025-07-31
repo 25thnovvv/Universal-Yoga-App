@@ -13,12 +13,12 @@ import androidx.fragment.app.Fragment;
 
 import androidx.room.Room;
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.db.AppDatabase;
-import com.example.universalyogaapp.firebase.FirebaseManager;
-import com.example.universalyogaapp.utils.SessionManager;
+import com.example.universalyogaapp.db.YogaAppDatabase;
+import com.example.universalyogaapp.firebase.YogaFirebaseManager;
+import com.example.universalyogaapp.utils.YogaSessionManager;
 import com.google.android.material.button.MaterialButton;
 
-public class AdminFragment extends Fragment {
+public class YogaAdminFragment extends Fragment {
 
     // UI Components
     private TextView usernameDisplayField;
@@ -27,9 +27,9 @@ public class AdminFragment extends Fragment {
     private MaterialButton logoutButton;
 
     // Business logic components
-    private SessionManager sessionManagerInstance;
-    private FirebaseManager firebaseManagerInstance;
-    private AppDatabase databaseInstance;
+    private YogaSessionManager sessionManagerInstance;
+    private YogaFirebaseManager firebaseManagerInstance;
+    private YogaAppDatabase databaseInstance;
 
     // Configuration constants
     private static final int SYNC_DELAY = 2000;
@@ -37,7 +37,7 @@ public class AdminFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_admin, container, false);
+        return inflater.inflate(R.layout.fragment_yoga_admin, container, false);
     }
 
     @Override
@@ -71,11 +71,11 @@ public class AdminFragment extends Fragment {
      * Initialize business logic components
      */
     private void initializeBusinessLogic() {
-        sessionManagerInstance = new SessionManager(requireContext());
-        firebaseManagerInstance = new FirebaseManager();
+        sessionManagerInstance = new YogaSessionManager(requireContext());
+        firebaseManagerInstance = new YogaFirebaseManager();
         databaseInstance = Room.databaseBuilder(
                         requireContext(),
-                        AppDatabase.class,
+                        YogaAppDatabase.class,
                         "yoga-db"
                 ).allowMainThreadQueries()
                 .fallbackToDestructiveMigration()
@@ -139,7 +139,7 @@ public class AdminFragment extends Fragment {
         new Thread(() -> {
             // Clear all data
             databaseInstance.courseDao().deleteAllCourses();
-            databaseInstance.classInstanceDao().deleteAllInstances();
+            databaseInstance.classSessionDao().deleteAllSessions();
 
             // Update UI on main thread
             requireActivity().runOnUiThread(() -> {
@@ -160,6 +160,6 @@ public class AdminFragment extends Fragment {
         // Navigate to LoginActivity
         requireActivity().finish();
         requireActivity().startActivity(new android.content.Intent(requireContext(),
-                com.example.universalyogaapp.ui.auth.LoginActivity.class));
+                com.example.universalyogaapp.ui.auth.YogaLoginActivity.class));
     }
-}
+} 

@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey;
 import androidx.room.Index;
 
 @Entity(tableName = "courses")
-public class CourseEntity {
+public class YogaCourseEntity {
     // Primary key for local database
     @PrimaryKey(autoGenerate = true)
     public int localDatabaseId;
@@ -27,10 +27,10 @@ public class CourseEntity {
     public double coursePrice;
 
     // Default constructor
-    public CourseEntity() {}
+    public YogaCourseEntity() {}
 
     // Comprehensive constructor
-    public CourseEntity(int localDatabaseId, String cloudDatabaseId, String courseName, 
+    public YogaCourseEntity(int localDatabaseId, String cloudDatabaseId, String courseName, 
                        String weeklySchedule, String classTime, String instructorName, 
                        String courseDescription, String additionalNotes, String nextClassDate, 
                        int maxStudents, int sessionDuration, double coursePrice, boolean cloudSyncStatus) {
@@ -128,4 +128,4 @@ public class CourseEntity {
 
     public boolean isSynced() { return cloudSyncStatus; }
     public void setSynced(boolean synced) { this.cloudSyncStatus = synced; }
-}
+} 

@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class DateUtils {
+public class YogaDateUtils {
 
     // Day of week mapping
     private static final String[] DAYS_OF_WEEK = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -84,4 +84,4 @@ public class DateUtils {
     private static int getDayOfWeekAsInt(String day) {
         return convertDayNameToCalendarConstant(day);
     }
-}
+} 

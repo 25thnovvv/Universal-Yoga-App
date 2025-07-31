@@ -3,7 +3,7 @@ package com.example.universalyogaapp.utils;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-public class SessionManager {
+public class YogaSessionManager {
     // SharedPreferences configuration
     private static final String SHARED_PREFERENCES_NAME = "YogaAppSession";
     private static final String KEY_LOGIN_STATUS = "isLoggedIn";
@@ -17,7 +17,7 @@ public class SessionManager {
     /**
      * Constructor for SessionManager
      */
-    public SessionManager(Context context) {
+    public YogaSessionManager(Context context) {
         this.applicationContext = context;
         sharedPreferencesInstance = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
         sharedPreferencesEditor = sharedPreferencesInstance.edit();
@@ -70,4 +70,4 @@ public class SessionManager {
     public void logout() {
         performUserLogout();
     }
-}
+} 

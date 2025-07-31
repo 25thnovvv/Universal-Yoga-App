@@ -2,7 +2,7 @@ package com.example.universalyogaapp.model;
 
 import java.io.Serializable;
 
-public class Course implements Serializable {
+public class YogaCourse implements Serializable {
     // Core course information
     private String courseId;
     private String courseName;
@@ -18,10 +18,10 @@ public class Course implements Serializable {
     private int databaseId;
 
     // Default constructor for Firebase serialization
-    public Course() {}
+    public YogaCourse() {}
 
     // Comprehensive constructor
-    public Course(String courseId, String courseName, String weeklySchedule, String classTime, 
+    public YogaCourse(String courseId, String courseName, String weeklySchedule, String classTime, 
                   String instructorName, int maxStudents, double coursePrice, int sessionDuration, 
                   String courseDescription, String additionalNotes, String nextClassDate, int databaseId) {
         this.courseId = courseId;
@@ -111,4 +111,4 @@ public class Course implements Serializable {
     
     public int getLocalId() { return databaseId; }
     public void setLocalId(int localId) { this.databaseId = localId; }
-}
+} 

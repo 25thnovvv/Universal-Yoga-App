@@ -2,24 +2,24 @@ package com.example.universalyogaapp.model;
 
 import java.io.Serializable;
 
-public class ClassInstance implements Serializable {
-    // Instance identification
-    private String instanceId;
+public class YogaClassSession implements Serializable {
+    // Session identification
+    private String sessionId;
     private String parentCourseId;
     private int localDatabaseId;
     
-    // Class details
+    // Class session details
     private String classDate;
     private String assignedInstructor;
     private String classNotes;
 
     // Default constructor for Firebase serialization
-    public ClassInstance() {}
+    public YogaClassSession() {}
 
     // Comprehensive constructor
-    public ClassInstance(String instanceId, String parentCourseId, String classDate, 
+    public YogaClassSession(String sessionId, String parentCourseId, String classDate, 
                         String assignedInstructor, String classNotes, int localDatabaseId) {
-        this.instanceId = instanceId;
+        this.sessionId = sessionId;
         this.parentCourseId = parentCourseId;
         this.classDate = classDate;
         this.assignedInstructor = assignedInstructor;
@@ -28,8 +28,8 @@ public class ClassInstance implements Serializable {
     }
 
     // Primary getters and setters
-    public String getInstanceId() { return instanceId; }
-    public void setInstanceId(String instanceId) { this.instanceId = instanceId; }
+    public String getSessionId() { return sessionId; }
+    public void setSessionId(String sessionId) { this.sessionId = sessionId; }
 
     public String getParentCourseId() { return parentCourseId; }
     public void setParentCourseId(String parentCourseId) { this.parentCourseId = parentCourseId; }
@@ -47,8 +47,8 @@ public class ClassInstance implements Serializable {
     public void setLocalDatabaseId(int localDatabaseId) { this.localDatabaseId = localDatabaseId; }
 
     // Legacy getters for backward compatibility
-    public String getId() { return instanceId; }
-    public void setId(String id) { this.instanceId = id; }
+    public String getId() { return sessionId; }
+    public void setId(String id) { this.sessionId = id; }
 
     public String getCourseId() { return parentCourseId; }
     public void setCourseId(String courseId) { this.parentCourseId = courseId; }
@@ -64,4 +64,4 @@ public class ClassInstance implements Serializable {
 
     public int getLocalId() { return localDatabaseId; }
     public void setLocalId(int localId) { this.localDatabaseId = localId; }
-}
+} 

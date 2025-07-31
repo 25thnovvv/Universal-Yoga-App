@@ -8,21 +8,21 @@ import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.ui.auth.LoginActivity;
-import com.example.universalyogaapp.utils.SessionManager;
+import com.example.universalyogaapp.ui.auth.YogaLoginActivity;
+import com.example.universalyogaapp.utils.YogaSessionManager;
 
-public class SplashActivity extends AppCompatActivity {
+public class YogaSplashActivity extends AppCompatActivity {
 
     // Configuration constants
     private static final int SPLASH_DISPLAY_DURATION = 2000; // 2 seconds
     
     // Components
-    private SessionManager sessionManagerInstance;
+    private YogaSessionManager sessionManagerInstance;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_splash);
+        setContentView(R.layout.activity_yoga_splash);
 
         initializeComponents();
         scheduleNavigation();
@@ -32,7 +32,7 @@ public class SplashActivity extends AppCompatActivity {
      * Initialize required components
      */
     private void initializeComponents() {
-        sessionManagerInstance = new SessionManager(this);
+        sessionManagerInstance = new YogaSessionManager(this);
     }
 
     /**
@@ -52,13 +52,13 @@ public class SplashActivity extends AppCompatActivity {
         
         if (sessionManagerInstance.isLoggedIn()) {
             // User is logged in, navigate to main activity
-            navigationIntent = new Intent(SplashActivity.this, MainActivity.class);
+            navigationIntent = new Intent(YogaSplashActivity.this, YogaMainActivity.class);
         } else {
             // User is not logged in, navigate to login activity
-            navigationIntent = new Intent(SplashActivity.this, LoginActivity.class);
+            navigationIntent = new Intent(YogaSplashActivity.this, YogaLoginActivity.class);
         }
         
         startActivity(navigationIntent);
         finish();
     }
-}
+} 

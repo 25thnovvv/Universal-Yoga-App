@@ -15,8 +15,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.firebase.FirebaseManager;
-import com.example.universalyogaapp.model.Course;
+import com.example.universalyogaapp.firebase.YogaFirebaseManager;
+import com.example.universalyogaapp.model.YogaCourse;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.database.DataSnapshot;
@@ -26,32 +26,32 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 import java.util.List;
 import androidx.room.Room;
-import com.example.universalyogaapp.db.AppDatabase;
-import com.example.universalyogaapp.db.CourseEntity;
-import com.example.universalyogaapp.db.ClassInstanceEntity;
-import com.example.universalyogaapp.dao.ClassInstanceDao;
-import com.example.universalyogaapp.model.ClassInstance;
+import com.example.universalyogaapp.db.YogaAppDatabase;
+import com.example.universalyogaapp.db.YogaCourseEntity;
+import com.example.universalyogaapp.db.YogaClassSessionEntity;
+import com.example.universalyogaapp.dao.YogaClassSessionDao;
+import com.example.universalyogaapp.model.YogaClassSession;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class CourseListActivity extends AppCompatActivity {
+public class YogaCourseListActivity extends AppCompatActivity {
     // UI Components
     private RecyclerView recyclerView;
-    private CourseAdapter adapter;
-    private List<Course> courseList;
-    private List<Course> fullCourseList; // Store all for filtering
+    private YogaCourseAdapter adapter;
+    private List<YogaCourse> courseList;
+    private List<YogaCourse> fullCourseList; // Store all for filtering
     private MaterialButton buttonSync;
 
     // Business logic components
-    private FirebaseManager firebaseManager;
-    private AppDatabase db;
+    private YogaFirebaseManager firebaseManager;
+    private YogaAppDatabase db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_course_list);
+        setContentView(R.layout.activity_yoga_course_list);
 
         initializeDatabase();
         initializeUserInterface();
@@ -65,7 +65,7 @@ public class CourseListActivity extends AppCompatActivity {
     private void initializeDatabase() {
         db = Room.databaseBuilder(
                         getApplicationContext(),
-                        AppDatabase.class,
+                        YogaAppDatabase.class,
                         "yoga-db"
                 ).allowMainThreadQueries()
                 .fallbackToDestructiveMigration()
@@ -80,19 +80,19 @@ public class CourseListActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         courseList = new ArrayList<>();
         fullCourseList = new ArrayList<>();
-        adapter = new CourseAdapter();
+        adapter = new YogaCourseAdapter();
         recyclerView.setAdapter(adapter);
-        firebaseManager = new FirebaseManager();
+        firebaseManager = new YogaFirebaseManager();
     }
 
     /**
      * Setup event listeners
      */
     private void setupEventListeners() {
-        adapter.setOnItemClickListener(new CourseAdapter.OnItemClickListener() {
+        adapter.setOnItemClickListener(new YogaCourseAdapter.OnItemClickListener() {
             @Override
-            public void onItemClick(Course course) {
-                Intent intent = new Intent(CourseListActivity.this, CourseDetailActivity.class);
+            public void onItemClick(YogaCourse course) {
+                Intent intent = new Intent(YogaCourseListActivity.this, YogaCourseDetailActivity.class);
                 intent.putExtra("course_id", course.getId());
                 startActivity(intent);
             }
@@ -102,7 +102,7 @@ public class CourseListActivity extends AppCompatActivity {
         buttonAddCourse.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(CourseListActivity.this, AddEditCourseActivity.class);
+                Intent intent = new Intent(YogaCourseListActivity.this, YogaCourseEditorActivity.class);
                 startActivity(intent);
             }
         });
@@ -125,7 +125,7 @@ public class CourseListActivity extends AppCompatActivity {
             public void onClick(View v) {
                 // Disable button and show loading state
                 buttonSync.setEnabled(false);
-                buttonSync.setIcon(ContextCompat.getDrawable(CourseListActivity.this, R.drawable.ic_sync));
+                buttonSync.setIcon(ContextCompat.getDrawable(YogaCourseListActivity.this, R.drawable.ic_sync));
 
                 // Perform sync operations
                 performDataSync();
@@ -145,10 +145,10 @@ public class CourseListActivity extends AppCompatActivity {
     private void loadCourses() {
         courseList.clear();
         fullCourseList.clear();
-        List<CourseEntity> entities = db.courseDao().getAllCourses();
+        List<YogaCourseEntity> entities = db.courseDao().getAllCourses();
 
-        for (CourseEntity entity : entities) {
-            Course course = new Course(
+        for (YogaCourseEntity entity : entities) {
+            YogaCourse course = new YogaCourse(
                     entity.getCloudDatabaseId(),
                     entity.getCourseName(),
                     entity.getWeeklySchedule(),
@@ -173,7 +173,7 @@ public class CourseListActivity extends AppCompatActivity {
      * Filter courses based on keyword
      */
     private void filterCourses(String keyword) {
-        List<Course> filtered = new ArrayList<>();
+        List<YogaCourse> filtered = new ArrayList<>();
         String lowerKeyword = keyword.toLowerCase();
         SimpleDateFormat[] dateFormats = new SimpleDateFormat[] {
                 new SimpleDateFormat("yyyy-MM-dd", Locale.US),
@@ -194,7 +194,7 @@ public class CourseListActivity extends AppCompatActivity {
             } catch (ParseException ignored) {}
         }
 
-        for (Course course : fullCourseList) {
+        for (YogaCourse course : fullCourseList) {
             boolean match = false;
             // If input is a date, filter by day of week
             if (dayOfWeek != null) {
@@ -231,11 +231,11 @@ public class CourseListActivity extends AppCompatActivity {
      * Sync courses to Firebase
      */
     public void syncCoursesToFirebase() {
-        List<CourseEntity> unsynced = db.courseDao().getUnsyncedCourses();
-        FirebaseManager firebaseManager = new FirebaseManager();
+        List<YogaCourseEntity> unsynced = db.courseDao().getUnsyncedCourses();
+        YogaFirebaseManager firebaseManager = new YogaFirebaseManager();
 
-        for (CourseEntity entity : unsynced) {
-            Course course = new Course(
+        for (YogaCourseEntity entity : unsynced) {
+            YogaCourse course = new YogaCourse(
                     null, entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
                     entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
             );
@@ -250,23 +250,23 @@ public class CourseListActivity extends AppCompatActivity {
     }
 
     /**
-     * Sync class instances to Firebase
+     * Sync class sessions to Firebase
      */
-    public void syncClassInstancesToFirebase() {
-        List<ClassInstanceEntity> unsynced = db.classInstanceDao().getUnsyncedInstances();
-        FirebaseManager firebaseManager = new FirebaseManager();
+    public void syncClassSessionsToFirebase() {
+        List<YogaClassSessionEntity> unsynced = db.classSessionDao().getUnsyncedSessions();
+        YogaFirebaseManager firebaseManager = new YogaFirebaseManager();
 
-        for (ClassInstanceEntity entity : unsynced) {
+        for (YogaClassSessionEntity entity : unsynced) {
             // Note: entity.parentCourseId is localId, need to map to firebaseId if want to link correctly on cloud
-            ClassInstance instance = new ClassInstance(
+            YogaClassSession session = new YogaClassSession(
                     null, entity.getCloudDatabaseId() != null ? entity.getCloudDatabaseId() : String.valueOf(entity.getParentCourseId()),
                     entity.getClassDate(), entity.getAssignedInstructor(), entity.getClassNotes(), entity.getLocalDatabaseId()
             );
-            firebaseManager.createNewClassInstance(instance, (error, ref) -> {
+            firebaseManager.createNewClassSession(session, (error, ref) -> {
                 if (error == null) {
                     entity.setCloudSyncStatus(true);
                     entity.setCloudDatabaseId(ref.getKey());
-                    db.classInstanceDao().updateClassInstance(entity);
+                    db.classSessionDao().updateClassSession(entity);
                 }
             });
         }
@@ -276,30 +276,30 @@ public class CourseListActivity extends AppCompatActivity {
      * Perform data synchronization with visual feedback
      */
     private void performDataSync() {
-        Toast.makeText(CourseListActivity.this, "Syncing data...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(YogaCourseListActivity.this, "Syncing data...", Toast.LENGTH_SHORT).show();
 
         // Get unsynced data counts
-        List<CourseEntity> unsyncedCourses = db.courseDao().getUnsyncedCourses();
-        List<ClassInstanceEntity> unsyncedInstances = db.classInstanceDao().getUnsyncedInstances();
+        List<YogaCourseEntity> unsyncedCourses = db.courseDao().getUnsyncedCourses();
+        List<YogaClassSessionEntity> unsyncedSessions = db.classSessionDao().getUnsyncedSessions();
 
-        int totalUnsynced = unsyncedCourses.size() + unsyncedInstances.size();
+        int totalUnsynced = unsyncedCourses.size() + unsyncedSessions.size();
 
         if (totalUnsynced == 0) {
-            Toast.makeText(CourseListActivity.this, "All data is already synced!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(YogaCourseListActivity.this, "All data is already synced!", Toast.LENGTH_SHORT).show();
             buttonSync.setEnabled(true);
             return;
         }
 
         // Perform sync operations
         syncCoursesToFirebase();
-        syncClassInstancesToFirebase();
+        syncClassSessionsToFirebase();
 
         // Re-enable button after a delay
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             buttonSync.setEnabled(true);
-            Toast.makeText(CourseListActivity.this, "Sync completed!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(YogaCourseListActivity.this, "Sync completed!", Toast.LENGTH_SHORT).show();
             // Refresh the course list
             loadCourses();
         }, 2000); // 2 seconds delay
     }
-}
+} 

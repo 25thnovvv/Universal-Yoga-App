@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey;
 import androidx.room.Index;
 
 @Entity(tableName = "class_instances")
-public class ClassInstanceEntity {
+public class YogaClassSessionEntity {
     // Primary key for local database
     @PrimaryKey(autoGenerate = true)
     public int localDatabaseId;
@@ -15,16 +15,16 @@ public class ClassInstanceEntity {
     public String cloudDatabaseId;
     public boolean cloudSyncStatus;
 
-    // Class instance details
+    // Class session details
     public String classDate;
     public String assignedInstructor;
     public String classNotes;
 
     // Default constructor
-    public ClassInstanceEntity() {}
+    public YogaClassSessionEntity() {}
 
     // Comprehensive constructor
-    public ClassInstanceEntity(int localDatabaseId, String parentCourseId, String cloudDatabaseId, 
+    public YogaClassSessionEntity(int localDatabaseId, String parentCourseId, String cloudDatabaseId, 
                               String classDate, String assignedInstructor, String classNotes, 
                               boolean cloudSyncStatus) {
         this.localDatabaseId = localDatabaseId;
@@ -79,4 +79,4 @@ public class ClassInstanceEntity {
 
     public boolean isSynced() { return cloudSyncStatus; }
     public void setSynced(boolean synced) { this.cloudSyncStatus = synced; }
-}
+} 

@@ -8,22 +8,22 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.universalyogaapp.model.Course;
+import com.example.universalyogaapp.model.YogaCourse;
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.utils.DateUtils;
+import com.example.universalyogaapp.utils.YogaDateUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseViewHolder> {
+public class YogaCourseAdapter extends RecyclerView.Adapter<YogaCourseAdapter.CourseViewHolder> {
     
     // Data management
-    private List<Course> courseDataList = new ArrayList<>();
+    private List<YogaCourse> courseDataList = new ArrayList<>();
     private OnItemClickListener itemClickListener;
 
     // Interface for item click events
     public interface OnItemClickListener {
-        void onItemClick(Course course);
+        void onItemClick(YogaCourse course);
     }
 
     /**
@@ -36,7 +36,7 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseView
     /**
      * Update course data list
      */
-    public void updateCourseList(List<Course> courses) {
+    public void updateCourseList(List<YogaCourse> courses) {
         this.courseDataList = courses;
         notifyDataSetChanged();
     }
@@ -44,13 +44,13 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseView
     @NonNull
     @Override
     public CourseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_course, parent, false);
+        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_yoga_course, parent, false);
         return new CourseViewHolder(itemView);
     }
 
     @Override
     public void onBindViewHolder(@NonNull CourseViewHolder holder, int position) {
-        Course currentCourse = courseDataList.get(position);
+        YogaCourse currentCourse = courseDataList.get(position);
         holder.bindCourseData(currentCourse);
         
         holder.itemView.setOnClickListener(v -> {
@@ -95,7 +95,7 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseView
         /**
          * Bind course data to views
          */
-        public void bindCourseData(Course course) {
+        public void bindCourseData(YogaCourse course) {
             courseNameField.setText(course.getName());
             courseDescriptionField.setText(course.getDescription());
             courseScheduleField.setText(formatScheduleDisplay(course.getSchedule()));
@@ -134,7 +134,7 @@ public class CourseAdapter extends RecyclerView.Adapter<CourseAdapter.CourseView
     }
 
     // Legacy methods for backward compatibility
-    public void setCourseList(List<Course> courses) {
+    public void setCourseList(List<YogaCourse> courses) {
         updateCourseList(courses);
     }
-}
+} 

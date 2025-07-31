@@ -2,7 +2,7 @@ package com.example.universalyogaapp.model;
 
 import java.io.Serializable;
 
-public class User implements Serializable {
+public class YogaUser implements Serializable {
     // User identification
     private String userId;
     private String userEmail;
@@ -12,12 +12,12 @@ public class User implements Serializable {
     private boolean cloudSyncStatus;
 
     // Default constructor for Firebase serialization
-    public User() {
+    public YogaUser() {
         this.cloudSyncStatus = false;
     }
 
     // Basic user constructor
-    public User(String userEmail, String userFullName, String userPhoneNumber) {
+    public YogaUser(String userEmail, String userFullName, String userPhoneNumber) {
         this.userEmail = userEmail;
         this.userFullName = userFullName;
         this.userPhoneNumber = userPhoneNumber;
@@ -25,7 +25,7 @@ public class User implements Serializable {
     }
 
     // Comprehensive constructor
-    public User(String userId, String userEmail, String userFullName, String userPhoneNumber, 
+    public YogaUser(String userId, String userEmail, String userFullName, String userPhoneNumber, 
                 String cloudUserId, boolean cloudSyncStatus) {
         this.userId = userId;
         this.userEmail = userEmail;

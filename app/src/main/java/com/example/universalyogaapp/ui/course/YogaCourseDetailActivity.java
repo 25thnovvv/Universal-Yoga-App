@@ -14,9 +14,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.firebase.FirebaseManager;
-import com.example.universalyogaapp.model.Course;
-import com.example.universalyogaapp.utils.DateUtils;
+import com.example.universalyogaapp.firebase.YogaFirebaseManager;
+import com.example.universalyogaapp.model.YogaCourse;
+import com.example.universalyogaapp.utils.YogaDateUtils;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -24,38 +24,38 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.Locale;
 import androidx.room.Room;
-import com.example.universalyogaapp.db.AppDatabase;
-import com.example.universalyogaapp.dao.CourseDao;
-import com.example.universalyogaapp.db.CourseEntity;
+import com.example.universalyogaapp.db.YogaAppDatabase;
+import com.example.universalyogaapp.dao.YogaCourseDao;
+import com.example.universalyogaapp.db.YogaCourseEntity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.example.universalyogaapp.model.ClassInstance;
+import com.example.universalyogaapp.model.YogaClassSession;
 import java.util.ArrayList;
 import java.util.List;
-import com.example.universalyogaapp.ui.course.ClassInstanceAdapter;
-import com.example.universalyogaapp.dao.ClassInstanceDao;
-import com.example.universalyogaapp.db.ClassInstanceEntity;
+import com.example.universalyogaapp.ui.course.YogaClassSessionAdapter;
+import com.example.universalyogaapp.dao.YogaClassSessionDao;
+import com.example.universalyogaapp.db.YogaClassSessionEntity;
 
-public class CourseDetailActivity extends AppCompatActivity {
+public class YogaCourseDetailActivity extends AppCompatActivity {
     // UI Components
     private TextView textViewName, textViewSchedule, textViewTime, textViewTeacher, textViewCapacity, textViewPrice, textViewDuration, textViewDescription, textViewNote;
     private Button buttonEdit, buttonDelete;
-    private RecyclerView recyclerViewClassInstances;
-    private ClassInstanceAdapter classInstanceAdapter;
-    private Button buttonAddClassInstance;
+    private RecyclerView recyclerViewClassSessions;
+    private YogaClassSessionAdapter classSessionAdapter;
+    private Button buttonAddClassSession;
 
     // Business logic components
-    private Course course;
-    private FirebaseManager firebaseManager;
+    private YogaCourse course;
+    private YogaFirebaseManager firebaseManager;
     private String courseId;
-    private AppDatabase db;
-    private List<ClassInstance> classInstanceList = new ArrayList<>();
+    private YogaAppDatabase db;
+    private List<YogaClassSession> classSessionList = new ArrayList<>();
     private String courseSchedule; // Store course schedule to pass to add/edit screen
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_course_detail);
+        setContentView(R.layout.activity_yoga_course_detail);
 
         initializeDatabase();
         initializeUserInterface();
@@ -69,7 +69,7 @@ public class CourseDetailActivity extends AppCompatActivity {
     private void initializeDatabase() {
         db = Room.databaseBuilder(
                         getApplicationContext(),
-                        AppDatabase.class,
+                        YogaAppDatabase.class,
                         "yoga-db"
                 ).allowMainThreadQueries()
                 .build();
@@ -90,10 +90,10 @@ public class CourseDetailActivity extends AppCompatActivity {
         textViewNote = findViewById(R.id.textViewNote);
         buttonEdit = findViewById(R.id.buttonEdit);
         buttonDelete = findViewById(R.id.buttonDelete);
-        recyclerViewClassInstances = findViewById(R.id.recyclerViewClassInstances);
-        buttonAddClassInstance = findViewById(R.id.buttonAddClassInstance);
+        recyclerViewClassSessions = findViewById(R.id.recyclerViewClassInstances);
+        buttonAddClassSession = findViewById(R.id.buttonAddClassInstance);
 
-        firebaseManager = new FirebaseManager();
+        firebaseManager = new YogaFirebaseManager();
     }
 
     /**
@@ -103,7 +103,7 @@ public class CourseDetailActivity extends AppCompatActivity {
         buttonEdit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(CourseDetailActivity.this, AddEditCourseActivity.class);
+                Intent intent = new Intent(YogaCourseDetailActivity.this, YogaCourseEditorActivity.class);
                 intent.putExtra("course_id", courseId);
                 startActivity(intent);
             }
@@ -116,28 +116,28 @@ public class CourseDetailActivity extends AppCompatActivity {
             }
         });
 
-        classInstanceAdapter = new ClassInstanceAdapter(classInstanceList, new ClassInstanceAdapter.OnInstanceActionListener() {
+        classSessionAdapter = new YogaClassSessionAdapter(classSessionList, new YogaClassSessionAdapter.OnSessionActionListener() {
             @Override
-            public void onEdit(ClassInstance instance) {
-                Intent intent = new Intent(CourseDetailActivity.this, AddEditClassInstanceActivity.class);
+            public void onEdit(YogaClassSession session) {
+                Intent intent = new Intent(YogaCourseDetailActivity.this, YogaClassSessionEditorActivity.class);
                 intent.putExtra("course_id", courseId);
                 intent.putExtra("course_schedule", courseSchedule);
-                intent.putExtra("class_instance", instance);
+                intent.putExtra("class_session", session);
                 startActivity(intent);
             }
             @Override
-            public void onDelete(ClassInstance instance) {
-                confirmDeleteInstance(instance);
+            public void onDelete(YogaClassSession session) {
+                confirmDeleteSession(session);
             }
         });
 
-        recyclerViewClassInstances.setLayoutManager(new LinearLayoutManager(this));
-        recyclerViewClassInstances.setAdapter(classInstanceAdapter);
+        recyclerViewClassSessions.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewClassSessions.setAdapter(classSessionAdapter);
 
-        buttonAddClassInstance.setOnClickListener(new View.OnClickListener() {
+        buttonAddClassSession.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(CourseDetailActivity.this, AddEditClassInstanceActivity.class);
+                Intent intent = new Intent(YogaCourseDetailActivity.this, YogaClassSessionEditorActivity.class);
                 intent.putExtra("course_id", courseId);
                 intent.putExtra("course_schedule", courseSchedule);
                 startActivity(intent);
@@ -159,9 +159,9 @@ public class CourseDetailActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (course != null) {
-            loadClassInstances(course.getId());
+            loadClassSessions(course.getId());
         } else if (courseId != null) {
-            loadClassInstances(courseId);
+            loadClassSessions(courseId);
         }
     }
 
@@ -179,7 +179,7 @@ public class CourseDetailActivity extends AppCompatActivity {
                 Integer durationObj = snapshot.child("duration").getValue(Integer.class);
                 int duration = durationObj != null ? durationObj : 0;
                 
-                com.example.universalyogaapp.model.Course course = new com.example.universalyogaapp.model.Course(
+                YogaCourse course = new YogaCourse(
                         snapshot.getKey(),
                         snapshot.child("name").getValue(String.class),
                         snapshot.child("schedule").getValue(String.class),
@@ -197,24 +197,24 @@ public class CourseDetailActivity extends AppCompatActivity {
                     course.setId(snapshot.getKey());
                     course.setLocalId(0); // When getting from Firebase, localId doesn't exist, set 0
                     showCourseInfo(course);
-                    loadClassInstances(course.getId());
+                    loadClassSessions(course.getId());
                 }
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(CourseDetailActivity.this, "Error loading data", Toast.LENGTH_SHORT).show();
+                Toast.makeText(YogaCourseDetailActivity.this, "Error loading data", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     /**
-     * Load class instances for course
+     * Load class sessions for course
      */
-    private void loadClassInstances(String courseId) {
-        classInstanceList.clear();
-        List<com.example.universalyogaapp.db.ClassInstanceEntity> entities = db.classInstanceDao().getInstancesForCourse(courseId);
-        for (com.example.universalyogaapp.db.ClassInstanceEntity entity : entities) {
-            com.example.universalyogaapp.model.ClassInstance instance = new com.example.universalyogaapp.model.ClassInstance(
+    private void loadClassSessions(String courseId) {
+        classSessionList.clear();
+        List<YogaClassSessionEntity> entities = db.classSessionDao().getSessionsForCourse(courseId);
+        for (YogaClassSessionEntity entity : entities) {
+            YogaClassSession session = new YogaClassSession(
                     entity.getCloudDatabaseId(),
                     entity.getParentCourseId(),
                     entity.getClassDate(),
@@ -222,18 +222,18 @@ public class CourseDetailActivity extends AppCompatActivity {
                     entity.getClassNotes(),
                     entity.getLocalDatabaseId()
             );
-            classInstanceList.add(instance);
+            classSessionList.add(session);
         }
-        classInstanceAdapter.updateInstanceList(new ArrayList<>(classInstanceList));
+        classSessionAdapter.updateSessionList(new ArrayList<>(classSessionList));
     }
 
     /**
      * Display course information
      */
-    private void showCourseInfo(Course course) {
+    private void showCourseInfo(YogaCourse course) {
         textViewName.setText(course.getName());
         textViewDescription.setText(course.getDescription());
-        textViewSchedule.setText(DateUtils.calculateNextUpcomingDate(course.getSchedule()));
+        textViewSchedule.setText(YogaDateUtils.calculateNextUpcomingDate(course.getSchedule()));
         textViewTime.setText(course.getTime() != null ? course.getTime() : "Not set");
         textViewTeacher.setText(course.getTeacher());
         textViewCapacity.setText(String.format(Locale.getDefault(), "%d Students", course.getCapacity()));
@@ -268,29 +268,29 @@ public class CourseDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Delete course and related instances
+     * Delete course and related sessions
      */
     private void deleteCourse() {
         if (courseId == null) return;
-        // Delete ClassInstances on Firebase first
-        firebaseManager.removeAllClassInstancesByCourseId(courseId, new DatabaseReference.CompletionListener() {
+        // Delete ClassSessions on Firebase first
+        firebaseManager.removeAllClassSessionsByCourseId(courseId, new DatabaseReference.CompletionListener() {
             @Override
             public void onComplete(DatabaseError error, DatabaseReference ref) {
-                // After deleting instances, delete Course
+                // After deleting sessions, delete Course
                 firebaseManager.removeCourse(courseId, new DatabaseReference.CompletionListener() {
                     @Override
                     public void onComplete(DatabaseError error, DatabaseReference ref) {
                         if (error == null) {
                             // Delete local in Room after successful cloud deletion
                             db.courseDao().deleteByCloudId(courseId);
-                            // Delete local instances
-                            db.classInstanceDao().getInstancesForCourse(courseId).forEach(entity -> {
-                                db.classInstanceDao().deleteClassInstance(entity);
+                            // Delete local sessions
+                            db.classSessionDao().getSessionsForCourse(courseId).forEach(entity -> {
+                                db.classSessionDao().deleteClassSession(entity);
                             });
-                            Toast.makeText(CourseDetailActivity.this, "Course and related class instances deleted successfully", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseDetailActivity.this, "Course and related class sessions deleted successfully", Toast.LENGTH_SHORT).show();
                             finish();
                         } else {
-                            Toast.makeText(CourseDetailActivity.this, "Error deleting course", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseDetailActivity.this, "Error deleting course", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -299,16 +299,16 @@ public class CourseDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Confirm class instance deletion
+     * Confirm class session deletion
      */
-    private void confirmDeleteInstance(ClassInstance instance) {
+    private void confirmDeleteSession(YogaClassSession session) {
         new AlertDialog.Builder(this)
                 .setTitle("Delete Class Session")
                 .setMessage("Are you sure you want to delete this class session?")
                 .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        deleteClassInstance(instance);
+                        deleteClassSession(session);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -316,31 +316,31 @@ public class CourseDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Delete class instance
+     * Delete class session
      */
-    private void deleteClassInstance(ClassInstance instance) {
-        firebaseManager.removeClassInstance(instance.getId(), new DatabaseReference.CompletionListener() {
+    private void deleteClassSession(YogaClassSession session) {
+        firebaseManager.removeClassSession(session.getId(), new DatabaseReference.CompletionListener() {
             @Override
             public void onComplete(DatabaseError error, DatabaseReference ref) {
                 if (error == null) {
                     // Delete from local database
-                    ClassInstanceEntity entity = db.classInstanceDao().getInstanceByCloudId(instance.getId());
+                    YogaClassSessionEntity entity = db.classSessionDao().getSessionByCloudId(session.getId());
                     if (entity != null) {
-                        db.classInstanceDao().deleteClassInstance(entity);
+                        db.classSessionDao().deleteClassSession(entity);
                     }
                     
                     // Refresh the list on UI thread
                     runOnUiThread(() -> {
-                        Toast.makeText(CourseDetailActivity.this, "Class instance deleted successfully", Toast.LENGTH_SHORT).show();
-                        // Reload class instances to refresh the list
-                        loadClassInstances(courseId);
+                        Toast.makeText(YogaCourseDetailActivity.this, "Class session deleted successfully", Toast.LENGTH_SHORT).show();
+                        // Reload class sessions to refresh the list
+                        loadClassSessions(courseId);
                     });
                 } else {
                     runOnUiThread(() -> {
-                        Toast.makeText(CourseDetailActivity.this, "Error deleting class instance", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(YogaCourseDetailActivity.this, "Error deleting class session", Toast.LENGTH_SHORT).show();
                     });
                 }
             }
         });
     }
-}
+} 

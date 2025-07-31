@@ -1,4 +1,3 @@
-
 package com.example.universalyogaapp.ui.auth;
 
 import android.content.Intent;
@@ -10,12 +9,12 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.ui.MainActivity;
-import com.example.universalyogaapp.utils.SessionManager;
+import com.example.universalyogaapp.ui.YogaMainActivity;
+import com.example.universalyogaapp.utils.YogaSessionManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
-public class LoginActivity extends AppCompatActivity {
+public class YogaLoginActivity extends AppCompatActivity {
 
     // UI Components
     private TextInputEditText usernameInputField;
@@ -24,7 +23,7 @@ public class LoginActivity extends AppCompatActivity {
     private View loadingIndicator;
     
     // Business logic components
-    private SessionManager sessionManagerInstance;
+    private YogaSessionManager sessionManagerInstance;
 
     // Authentication credentials
     private static final String ADMIN_USERNAME = "admin";
@@ -34,7 +33,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
+        setContentView(R.layout.activity_yoga_login);
 
         initializeUserInterface();
         setupEventListeners();
@@ -48,7 +47,7 @@ public class LoginActivity extends AppCompatActivity {
         passwordInputField = findViewById(R.id.editTextPassword);
         loginButton = findViewById(R.id.buttonLogin);
         loadingIndicator = findViewById(R.id.progressBar);
-        sessionManagerInstance = new SessionManager(this);
+        sessionManagerInstance = new YogaSessionManager(this);
     }
 
     /**
@@ -113,9 +112,9 @@ public class LoginActivity extends AppCompatActivity {
     private void handleSuccessfulLogin(String username) {
         displayLoadingState(false);
         sessionManagerInstance.setLogin(true, username);
-        Toast.makeText(LoginActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
+        Toast.makeText(YogaLoginActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
 
-        Intent mainActivityIntent = new Intent(LoginActivity.this, MainActivity.class);
+        Intent mainActivityIntent = new Intent(YogaLoginActivity.this, YogaMainActivity.class);
         mainActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(mainActivityIntent);
         finish();
@@ -126,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
      */
     private void handleFailedLogin() {
         displayLoadingState(false);
-        Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+        Toast.makeText(YogaLoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
     }
 
     /**

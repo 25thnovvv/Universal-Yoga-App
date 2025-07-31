@@ -13,9 +13,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.firebase.FirebaseManager;
-import com.example.universalyogaapp.model.Course;
-import com.example.universalyogaapp.utils.DateUtils;
+import com.example.universalyogaapp.firebase.YogaFirebaseManager;
+import com.example.universalyogaapp.model.YogaCourse;
+import com.example.universalyogaapp.utils.YogaDateUtils;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputEditText;
@@ -29,27 +29,27 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import androidx.room.Room;
-import com.example.universalyogaapp.db.AppDatabase;
-import com.example.universalyogaapp.db.CourseEntity;
+import com.example.universalyogaapp.db.YogaAppDatabase;
+import com.example.universalyogaapp.db.YogaCourseEntity;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
-public class AddEditCourseActivity extends AppCompatActivity {
+public class YogaCourseEditorActivity extends AppCompatActivity {
     // UI Components
     private TextInputEditText editTextName, editTextTime, editTextTeacher, editTextCapacity, editTextPrice, editTextDuration, editTextDescription, editTextNote;
     private ChipGroup chipGroupSchedule;
     private Button buttonSave;
 
     // Business logic components
-    private FirebaseManager firebaseManager;
-    private Course editingCourse;
+    private YogaFirebaseManager firebaseManager;
+    private YogaCourse editingCourse;
     private String courseId;
-    private AppDatabase db;
+    private YogaAppDatabase db;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_add_edit_course);
+        setContentView(R.layout.activity_yoga_course_editor);
 
         initializeDatabase();
         initializeUserInterface();
@@ -63,7 +63,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
     private void initializeDatabase() {
         db = Room.databaseBuilder(
                         getApplicationContext(),
-                        AppDatabase.class,
+                        YogaAppDatabase.class,
                         "yoga-db"
                 ).allowMainThreadQueries()
                 .fallbackToDestructiveMigration()
@@ -85,7 +85,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
         editTextNote = findViewById(R.id.editTextNote);
         buttonSave = findViewById(R.id.buttonSave);
 
-        firebaseManager = new FirebaseManager();
+        firebaseManager = new YogaFirebaseManager();
     }
 
     /**
@@ -135,7 +135,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
         firebaseManager.fetchCourseById(id, new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                editingCourse = snapshot.getValue(Course.class);
+                editingCourse = snapshot.getValue(YogaCourse.class);
                 if (editingCourse != null) {
                     editingCourse.setId(snapshot.getKey());
                     fillCourseData(editingCourse);
@@ -143,7 +143,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(AddEditCourseActivity.this, "Error loading data", Toast.LENGTH_SHORT).show();
+                Toast.makeText(YogaCourseEditorActivity.this, "Error loading data", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -151,7 +151,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
     /**
      * Fill course data into UI
      */
-    private void fillCourseData(Course course) {
+    private void fillCourseData(YogaCourse course) {
         editTextName.setText(course.getName());
 
         // Find and check the corresponding chips
@@ -195,7 +195,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
             selectedChips.add(chip.getText().toString());
         }
         String schedule = String.join(",", selectedChips);
-        String upcomingDate = DateUtils.calculateNextUpcomingDate(schedule);
+        String upcomingDate = YogaDateUtils.calculateNextUpcomingDate(schedule);
         String time = editTextTime.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
         String capacityStr = editTextCapacity.getText().toString().trim();
@@ -241,7 +241,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
             selectedChips.add(chip.getText().toString());
         }
         String schedule = String.join(",", selectedChips);
-        String upcomingDate = DateUtils.calculateNextUpcomingDate(schedule);
+        String upcomingDate = YogaDateUtils.calculateNextUpcomingDate(schedule);
         String time = editTextTime.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
         String capacityStr = editTextCapacity.getText().toString().trim();
@@ -255,7 +255,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
 
         if (editingCourse != null) {
             // EDITING EXISTING COURSE
-            Course course = new Course(
+            YogaCourse course = new YogaCourse(
                     editingCourse.getId(), name, schedule, time, teacher,
                     capacity, price, duration, description, note, upcomingDate, editingCourse.getLocalId()
             );
@@ -265,7 +265,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 DatabaseReference.CompletionListener listener = (error, ref) -> {
                     if (error == null) {
                         // Update local database
-                        CourseEntity entity = new CourseEntity();
+                        YogaCourseEntity entity = new YogaCourseEntity();
                         entity.setLocalDatabaseId(editingCourse.getLocalId());
                         entity.setCloudDatabaseId(editingCourse.getId());
                         entity.setCourseName(name);
@@ -282,12 +282,12 @@ public class AddEditCourseActivity extends AppCompatActivity {
 
                         db.courseDao().updateCourse(entity);
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditCourseActivity.this, "Course updated and synced!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseEditorActivity.this, "Course updated and synced!", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     } else {
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditCourseActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
@@ -295,7 +295,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 firebaseManager.updateExistingCourse(course, listener);
             } else {
                 // OFFLINE: Update local only
-                CourseEntity entity = new CourseEntity();
+                YogaCourseEntity entity = new YogaCourseEntity();
                 entity.setLocalDatabaseId(editingCourse.getLocalId());
                 entity.setCloudDatabaseId(editingCourse.getId());
                 entity.setCourseName(name);
@@ -311,12 +311,12 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 entity.setCloudSyncStatus(false);
 
                 db.courseDao().updateCourse(entity);
-                Toast.makeText(AddEditCourseActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(YogaCourseEditorActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } else {
             // CREATING NEW COURSE
-            CourseEntity entity = new CourseEntity();
+            YogaCourseEntity entity = new YogaCourseEntity();
             entity.setCourseName(name);
             entity.setWeeklySchedule(schedule);
             entity.setClassTime(time);
@@ -332,7 +332,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 // ONLINE: Save local with isSynced=true, push to Firebase
                 entity.setCloudSyncStatus(true);
                 long localId = db.courseDao().insertCourse(entity);
-                Course course = new Course(
+                YogaCourse course = new YogaCourse(
                         entity.getCloudDatabaseId(), entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
                         entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
                 );
@@ -340,12 +340,12 @@ public class AddEditCourseActivity extends AppCompatActivity {
                     if (error == null) {
                         db.courseDao().markCourseAsSynced((int) localId, ref.getKey());
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditCourseActivity.this, "Course saved and synced!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseEditorActivity.this, "Course saved and synced!", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     } else {
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditCourseActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaCourseEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
@@ -360,7 +360,7 @@ public class AddEditCourseActivity extends AppCompatActivity {
                 // OFFLINE: Save local with isSynced=false
                 entity.setCloudSyncStatus(false);
                 db.courseDao().insertCourse(entity);
-                Toast.makeText(AddEditCourseActivity.this, "Course saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(YogaCourseEditorActivity.this, "Course saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         }
@@ -379,4 +379,4 @@ public class AddEditCourseActivity extends AppCompatActivity {
         }, hour, minute, true);
         timePickerDialog.show();
     }
-}
+} 

@@ -7,11 +7,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.ui.fragments.AdminFragment;
-import com.example.universalyogaapp.ui.course.CourseListActivity;
+import com.example.universalyogaapp.ui.fragments.YogaAdminFragment;
+import com.example.universalyogaapp.ui.course.YogaCourseListActivity;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-public class MainActivity extends AppCompatActivity {
+public class YogaMainActivity extends AppCompatActivity {
 
     // UI Components
     private BottomNavigationView bottomNavigationView;
@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_yoga_main);
 
         initializeUserInterface();
         configureBottomNavigation();
@@ -39,11 +39,11 @@ public class MainActivity extends AppCompatActivity {
     private void configureBottomNavigation() {
         bottomNavigationView.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.nav_admin) {
-                switchToFragment(new AdminFragment());
+                switchToFragment(new YogaAdminFragment());
                 return true;
             } else if (item.getItemId() == R.id.nav_courses) {
                 // Navigate directly to CourseListActivity
-                Intent courseListIntent = new Intent(MainActivity.this, CourseListActivity.class);
+                Intent courseListIntent = new Intent(YogaMainActivity.this, YogaCourseListActivity.class);
                 startActivity(courseListIntent);
                 return true;
             }
@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
      * Load default fragment (Admin)
      */
     private void loadDefaultFragment() {
-        switchToFragment(new AdminFragment());
+        switchToFragment(new YogaAdminFragment());
     }
 
     /**
@@ -67,4 +67,4 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.fragmentContainer, fragment)
                 .commit();
     }
-}
+} 

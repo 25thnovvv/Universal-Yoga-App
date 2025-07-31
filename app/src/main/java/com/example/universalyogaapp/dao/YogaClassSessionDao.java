@@ -1,62 +1,62 @@
 package com.example.universalyogaapp.dao;
 
 import androidx.room.*;
-import com.example.universalyogaapp.db.ClassInstanceEntity;
+import com.example.universalyogaapp.db.YogaClassSessionEntity;
 import java.util.List;
 
 @Dao
-public interface ClassInstanceDao {
+public interface YogaClassSessionDao {
     // Basic CRUD operations
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    long insertClassInstance(ClassInstanceEntity classInstanceEntity);
+    long insertClassSession(YogaClassSessionEntity classSessionEntity);
 
     @Update
-    void updateClassInstance(ClassInstanceEntity classInstanceEntity);
+    void updateClassSession(YogaClassSessionEntity classSessionEntity);
 
     @Delete
-    void deleteClassInstance(ClassInstanceEntity classInstanceEntity);
+    void deleteClassSession(YogaClassSessionEntity classSessionEntity);
 
     // Query operations
     @Query("SELECT * FROM class_instances WHERE parentCourseId = :parentCourseId")
-    List<ClassInstanceEntity> getInstancesForCourse(String parentCourseId);
+    List<YogaClassSessionEntity> getSessionsForCourse(String parentCourseId);
 
     @Query("SELECT * FROM class_instances WHERE cloudSyncStatus = 0")
-    List<ClassInstanceEntity> getUnsyncedInstances();
+    List<YogaClassSessionEntity> getUnsyncedSessions();
 
     @Query("DELETE FROM class_instances WHERE cloudDatabaseId = :cloudDatabaseId")
     void deleteByCloudId(String cloudDatabaseId);
 
     @Query("SELECT * FROM class_instances WHERE cloudDatabaseId = :cloudDatabaseId LIMIT 1")
-    ClassInstanceEntity getInstanceByCloudId(String cloudDatabaseId);
+    YogaClassSessionEntity getSessionByCloudId(String cloudDatabaseId);
 
     @Query("UPDATE class_instances SET cloudSyncStatus = 1, cloudDatabaseId = :cloudDatabaseId WHERE localDatabaseId = :localDatabaseId")
-    void markInstanceAsSynced(int localDatabaseId, String cloudDatabaseId);
+    void markSessionAsSynced(int localDatabaseId, String cloudDatabaseId);
 
     @Query("DELETE FROM class_instances")
-    void deleteAllInstances();
+    void deleteAllSessions();
 
     // Legacy methods for backward compatibility
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    long insert(ClassInstanceEntity instance);
+    long insert(YogaClassSessionEntity session);
 
     @Update
-    void update(ClassInstanceEntity instance);
+    void update(YogaClassSessionEntity session);
 
     @Delete
-    void delete(ClassInstanceEntity instance);
+    void delete(YogaClassSessionEntity session);
 
     @Query("SELECT * FROM class_instances WHERE parentCourseId = :courseId")
-    List<ClassInstanceEntity> getInstancesForCourseLegacy(String courseId);
+    List<YogaClassSessionEntity> getSessionsForCourseLegacy(String courseId);
 
     @Query("SELECT * FROM class_instances WHERE cloudSyncStatus = 0")
-    List<ClassInstanceEntity> getUnsyncedInstancesLegacy();
+    List<YogaClassSessionEntity> getUnsyncedSessionsLegacy();
 
     @Query("DELETE FROM class_instances WHERE cloudDatabaseId = :firebaseId")
     void deleteByFirebaseId(String firebaseId);
 
     @Query("SELECT * FROM class_instances WHERE cloudDatabaseId = :firebaseId LIMIT 1")
-    ClassInstanceEntity getInstanceByFirebaseId(String firebaseId);
+    YogaClassSessionEntity getSessionByFirebaseId(String firebaseId);
 
     @Query("UPDATE class_instances SET cloudSyncStatus = 1, cloudDatabaseId = :firebaseId WHERE localDatabaseId = :id")
-    void markInstanceAsSyncedLegacy(int id, String firebaseId);
-}
+    void markSessionAsSyncedLegacy(int id, String firebaseId);
+} 

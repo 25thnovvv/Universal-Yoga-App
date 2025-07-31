@@ -11,10 +11,10 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.universalyogaapp.R;
-import com.example.universalyogaapp.firebase.FirebaseManager;
-import com.example.universalyogaapp.model.ClassInstance;
-import com.example.universalyogaapp.db.AppDatabase;
-import com.example.universalyogaapp.db.ClassInstanceEntity;
+import com.example.universalyogaapp.firebase.YogaFirebaseManager;
+import com.example.universalyogaapp.model.YogaClassSession;
+import com.example.universalyogaapp.db.YogaAppDatabase;
+import com.example.universalyogaapp.db.YogaClassSessionEntity;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -23,27 +23,27 @@ import java.util.Locale;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
-public class AddEditClassInstanceActivity extends AppCompatActivity {
+public class YogaClassSessionEditorActivity extends AppCompatActivity {
     // UI Components
     private EditText editTextDate, editTextTeacher, editTextNote;
     private Button buttonSave;
 
     // Business logic components
     private String courseId, courseSchedule; // courseSchedule: example "Tuesday"
-    private FirebaseManager firebaseManager;
-    private ClassInstance editingInstance;
+    private YogaFirebaseManager firebaseManager;
+    private YogaClassSession editingSession;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-    private AppDatabase db;
+    private YogaAppDatabase db;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_add_edit_class_instance);
+        setContentView(R.layout.activity_yoga_class_session_editor);
 
         initializeDatabase();
         initializeUserInterface();
         setupEventListeners();
-        loadInstanceData();
+        loadSessionData();
     }
 
     /**
@@ -52,7 +52,7 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
     private void initializeDatabase() {
         db = androidx.room.Room.databaseBuilder(
                         getApplicationContext(),
-                        AppDatabase.class,
+                        YogaAppDatabase.class,
                         "yoga-db"
                 ).allowMainThreadQueries()
                 .fallbackToDestructiveMigration()
@@ -66,8 +66,8 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         editTextDate = findViewById(R.id.editTextDate);
         editTextTeacher = findViewById(R.id.editTextTeacher);
         editTextNote = findViewById(R.id.editTextNote);
-        buttonSave = findViewById(R.id.buttonSaveInstance);
-        firebaseManager = new FirebaseManager();
+        buttonSave = findViewById(R.id.buttonSaveSession);
+        firebaseManager = new YogaFirebaseManager();
     }
 
     /**
@@ -84,24 +84,24 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
         buttonSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                saveInstance();
+                saveSession();
             }
         });
     }
 
     /**
-     * Load instance data
+     * Load session data
      */
-    private void loadInstanceData() {
+    private void loadSessionData() {
         courseId = getIntent().getStringExtra("course_id"); // Ensure this value is firebaseId
         courseSchedule = getIntent().getStringExtra("course_schedule"); // example "Tuesday"
-        editingInstance = (ClassInstance) getIntent().getSerializableExtra("class_instance");
+        editingSession = (YogaClassSession) getIntent().getSerializableExtra("class_session");
 
-        if (editingInstance != null) {
+        if (editingSession != null) {
             setTitle("Edit Class Session");
-            editTextDate.setText(editingInstance.getDate());
-            editTextTeacher.setText(editingInstance.getTeacher());
-            editTextNote.setText(editingInstance.getNote());
+            editTextDate.setText(editingSession.getDate());
+            editTextTeacher.setText(editingSession.getTeacher());
+            editTextNote.setText(editingSession.getNote());
         } else {
             setTitle("Add Class Session");
         }
@@ -132,9 +132,9 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
     }
 
     /**
-     * Save class instance
+     * Save class session
      */
-    private void saveInstance() {
+    private void saveSession() {
         String date = editTextDate.getText().toString().trim();
         String teacher = editTextTeacher.getText().toString().trim();
         String note = editTextNote.getText().toString().trim();
@@ -150,9 +150,9 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
             return;
         }
 
-        if (editingInstance == null) {
-            // Add new instance
-            ClassInstanceEntity entity = new ClassInstanceEntity();
+        if (editingSession == null) {
+            // Add new session
+            YogaClassSessionEntity entity = new YogaClassSessionEntity();
             entity.setCloudDatabaseId(null);
             entity.setParentCourseId(courseId);
             entity.setClassDate(date);
@@ -161,33 +161,33 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
             
             if (isNetworkAvailable()) {
                 entity.setCloudSyncStatus(true);
-                long localId = db.classInstanceDao().insertClassInstance(entity);
-                ClassInstance instance = new ClassInstance(
+                long localId = db.classSessionDao().insertClassSession(entity);
+                YogaClassSession session = new YogaClassSession(
                         null, courseId, date, teacher, note, (int) localId
                 );
-                firebaseManager.createNewClassInstance(instance, (error, ref) -> {
+                firebaseManager.createNewClassSession(session, (error, ref) -> {
                     if (error == null) {
-                        db.classInstanceDao().markInstanceAsSynced((int) localId, ref.getKey());
+                        db.classSessionDao().markSessionAsSynced((int) localId, ref.getKey());
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditClassInstanceActivity.this, "Class session saved and synced!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaClassSessionEditorActivity.this, "Class session saved and synced!", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     } else {
                         runOnUiThread(() -> {
-                            Toast.makeText(AddEditClassInstanceActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(YogaClassSessionEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
                 });
             } else {
                 entity.setCloudSyncStatus(false);
-                db.classInstanceDao().insertClassInstance(entity);
+                db.classSessionDao().insertClassSession(entity);
                 Toast.makeText(this, "Class session saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } else {
-            // Edit existing instance
-            ClassInstanceEntity entity = db.classInstanceDao().getInstanceByCloudId(editingInstance.getId());
+            // Edit existing session
+            YogaClassSessionEntity entity = db.classSessionDao().getSessionByCloudId(editingSession.getId());
             if (entity != null) {
                 entity.setClassDate(date);
                 entity.setAssignedInstructor(teacher);
@@ -195,27 +195,27 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
                 
                 if (isNetworkAvailable()) {
                     entity.setCloudSyncStatus(true);
-                    db.classInstanceDao().updateClassInstance(entity);
-                    ClassInstance instance = new ClassInstance(
+                    db.classSessionDao().updateClassSession(entity);
+                    YogaClassSession session = new YogaClassSession(
                             entity.getCloudDatabaseId(), entity.getParentCourseId(), date, teacher, note, entity.getLocalDatabaseId()
                     );
-                    firebaseManager.updateExistingClassInstance(instance, (error, ref) -> {
+                    firebaseManager.updateExistingClassSession(session, (error, ref) -> {
                         if (error == null) {
-                            db.classInstanceDao().markInstanceAsSynced(entity.getLocalDatabaseId(), entity.getCloudDatabaseId());
+                            db.classSessionDao().markSessionAsSynced(entity.getLocalDatabaseId(), entity.getCloudDatabaseId());
                             runOnUiThread(() -> {
-                                Toast.makeText(AddEditClassInstanceActivity.this, "Class session updated and synced!", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(YogaClassSessionEditorActivity.this, "Class session updated and synced!", Toast.LENGTH_SHORT).show();
                                 finish();
                             });
                         } else {
                             runOnUiThread(() -> {
-                                Toast.makeText(AddEditClassInstanceActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(YogaClassSessionEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
                                 finish();
                             });
                         }
                     });
                 } else {
                     entity.setCloudSyncStatus(false);
-                    db.classInstanceDao().updateClassInstance(entity);
+                    db.classSessionDao().updateClassSession(entity);
                     Toast.makeText(this, "Class session updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -239,4 +239,4 @@ public class AddEditClassInstanceActivity extends AppCompatActivity {
             return false;
         }
     }
-}
+} 
