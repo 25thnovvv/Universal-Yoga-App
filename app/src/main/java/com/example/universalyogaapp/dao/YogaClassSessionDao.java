@@ -17,10 +17,13 @@ public interface YogaClassSessionDao {
     void deleteClassSession(YogaClassSessionEntity classSessionEntity);
 
     // Query operations
-    @Query("SELECT * FROM class_instances WHERE parentCourseId = :parentCourseId")
+    @Query("SELECT * FROM class_instances")
+    List<YogaClassSessionEntity> getAllSessions();
+
+    @Query("SELECT * FROM class_instances WHERE parentCourseId = :parentCourseId AND (isDeleted IS NULL OR isDeleted = 0)")
     List<YogaClassSessionEntity> getSessionsForCourse(String parentCourseId);
 
-    @Query("SELECT * FROM class_instances WHERE cloudSyncStatus = 0")
+    @Query("SELECT * FROM class_instances WHERE cloudSyncStatus = 0 OR isDeleted = 1")
     List<YogaClassSessionEntity> getUnsyncedSessions();
 
     @Query("DELETE FROM class_instances WHERE cloudDatabaseId = :cloudDatabaseId")

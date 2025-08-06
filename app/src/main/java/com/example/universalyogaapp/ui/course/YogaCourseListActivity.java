@@ -167,12 +167,17 @@ public class YogaCourseListActivity extends AppCompatActivity {
         courseList.clear();
         fullCourseList.clear();
         List<YogaCourseEntity> entities = db.courseDao().getAllCourses();
+        
+        System.out.println("Loading courses from database: " + entities.size() + " total courses found");
 
         // Use a Set to track unique courses by name to avoid duplicates in display
         Set<String> addedCourseNames = new HashSet<>();
 
         for (YogaCourseEntity entity : entities) {
             String courseName = entity.getCourseName();
+            
+            // Debug log for sync status
+            System.out.println("Course: " + courseName + " (Local ID: " + entity.getLocalDatabaseId() + ", Cloud ID: " + entity.getCloudDatabaseId() + ", Sync Status: " + entity.getCloudSyncStatus() + ")");
             
             // Only add if we haven't seen this course name before
             if (courseName != null && !addedCourseNames.contains(courseName)) {
@@ -201,7 +206,10 @@ public class YogaCourseListActivity extends AppCompatActivity {
         }
 
         adapter.updateCourseList(courseList);
-        System.out.println("Loaded " + courseList.size() + " unique courses");
+        
+        // Show sync status summary
+        long unsyncedCount = entities.stream().filter(e -> !e.getCloudSyncStatus()).count();
+        System.out.println("Loaded " + courseList.size() + " unique courses for display. " + unsyncedCount + " courses need sync.");
     }
 
     /**
@@ -345,10 +353,27 @@ public class YogaCourseListActivity extends AppCompatActivity {
                 for (YogaCourseEntity course : courses) {
                     System.out.println("  - ID: " + course.getLocalDatabaseId() + 
                                      ", Firebase ID: " + course.getCloudDatabaseId() + 
-                                     ", Name: " + course.getCourseName());
+                                     ", Name: " + course.getCourseName() +
+                                     ", Sync Status: " + course.getCloudSyncStatus());
                 }
+            } else {
+                YogaCourseEntity course = courses.get(0);
+                System.out.println("COURSE: " + entry.getKey() + 
+                                 " (Local ID: " + course.getLocalDatabaseId() + 
+                                 ", Cloud ID: " + course.getCloudDatabaseId() + 
+                                 ", Sync Status: " + course.getCloudSyncStatus() + ")");
             }
         }
+        
+        // Show unsynced courses specifically
+        List<YogaCourseEntity> unsyncedCourses = db.courseDao().getUnsyncedCourses();
+        System.out.println("UNSYNCED COURSES: " + unsyncedCourses.size());
+        for (YogaCourseEntity course : unsyncedCourses) {
+            System.out.println("  - UNSYNCED: " + course.getCourseName() + 
+                             " (Local ID: " + course.getLocalDatabaseId() + 
+                             ", Cloud ID: " + course.getCloudDatabaseId() + ")");
+        }
+        
         System.out.println("=== END DEBUG ===");
     }
 
@@ -485,20 +510,23 @@ public class YogaCourseListActivity extends AppCompatActivity {
                         YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(firebaseId);
                         
                         if (existingEntity != null) {
-                            // Update existing course
-                            existingEntity.setCourseName(name);
-                            existingEntity.setWeeklySchedule(schedule);
-                            existingEntity.setClassTime(time);
-                            existingEntity.setInstructorName(teacher);
-                            existingEntity.setMaxStudents(capacity != null ? capacity : 0);
-                            existingEntity.setCoursePrice(price != null ? price : 0.0);
-                            existingEntity.setSessionDuration(duration != null ? duration : 0);
-                            existingEntity.setCourseDescription(description);
-                            existingEntity.setAdditionalNotes(note);
-                            existingEntity.setNextClassDate(upcomingDate);
-                            existingEntity.setCloudSyncStatus(true);
-                            
-                            db.courseDao().updateCourse(existingEntity);
+                            // Check if local course has unsynced changes
+                            if (existingEntity.getCloudSyncStatus()) {
+                                // Local course is synced, safe to update from Firebase
+                                existingEntity.setCourseName(name);
+                                existingEntity.setWeeklySchedule(schedule);
+                                existingEntity.setClassTime(time);
+                                existingEntity.setInstructorName(teacher);
+                                existingEntity.setMaxStudents(capacity != null ? capacity : 0);
+                                existingEntity.setCoursePrice(price != null ? price : 0.0);
+                                existingEntity.setSessionDuration(duration != null ? duration : 0);
+                                existingEntity.setCourseDescription(description);
+                                existingEntity.setAdditionalNotes(note);
+                                existingEntity.setNextClassDate(upcomingDate);
+                                existingEntity.setCloudSyncStatus(true);
+                                
+                                db.courseDao().updateCourse(existingEntity);
+                            }
                         } else {
                             // Check if there's a course with the same name to avoid duplicates
                             List<YogaCourseEntity> coursesWithSameName = db.courseDao().getCoursesByName(name);
@@ -609,7 +637,11 @@ public class YogaCourseListActivity extends AppCompatActivity {
         List<YogaCourseEntity> unsynced = db.courseDao().getUnsyncedCourses();
         YogaFirebaseManager firebaseManager = new YogaFirebaseManager();
 
+        System.out.println("Starting sync: Found " + unsynced.size() + " unsynced courses");
+
         for (YogaCourseEntity entity : unsynced) {
+            System.out.println("Syncing course: " + entity.getCourseName() + " (Local ID: " + entity.getLocalDatabaseId() + ", Cloud ID: " + entity.getCloudDatabaseId() + ", Sync Status: " + entity.getCloudSyncStatus() + ")");
+            
             YogaCourse course = new YogaCourse(
                     entity.getCloudDatabaseId(), entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
                     entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
@@ -618,20 +650,52 @@ public class YogaCourseListActivity extends AppCompatActivity {
             if (entity.getCloudDatabaseId() != null && !entity.getCloudDatabaseId().isEmpty()) {
                 // Course already exists in Firebase, update it
                 course.setId(entity.getCloudDatabaseId());
+                System.out.println("Updating existing course in Firebase: " + course.getCourseName() + " with ID: " + course.getId());
                 firebaseManager.updateExistingCourse(course, (error, ref) -> {
                     if (error == null) {
-                        entity.setCloudSyncStatus(true);
-                        db.courseDao().updateCourse(entity);
+                        System.out.println("Successfully updated course in Firebase: " + course.getCourseName());
+                        // Update the entity in a new transaction to ensure changes are persisted
+                        runOnUiThread(() -> {
+                            try {
+                                YogaCourseEntity updatedEntity = db.courseDao().getCourseByCloudId(entity.getCloudDatabaseId());
+                                if (updatedEntity != null) {
+                                    updatedEntity.setCloudSyncStatus(true);
+                                    db.courseDao().updateCourse(updatedEntity);
+                                    System.out.println("Marked course as synced in local database: " + updatedEntity.getCourseName());
+                                }
+                            } catch (Exception e) {
+                                System.err.println("Error updating local sync status: " + e.getMessage());
+                            }
+                        });
+                    } else {
+                        System.err.println("Failed to update course in Firebase: " + error.getMessage());
                     }
                 });
             } else {
                 // Course doesn't exist in Firebase, create new one
                 course.setId(null);
+                System.out.println("Creating new course in Firebase: " + course.getCourseName());
                 firebaseManager.createNewCourse(course, (error, ref) -> {
-                    if (error == null) {
-                        entity.setCloudSyncStatus(true);
-                        entity.setCloudDatabaseId(ref.getKey());
-                        db.courseDao().updateCourse(entity);
+                    if (error == null && ref != null) {
+                        System.out.println("Successfully created course in Firebase: " + course.getCourseName() + " with new ID: " + ref.getKey());
+                        // Update the entity in a new transaction to ensure changes are persisted
+                        runOnUiThread(() -> {
+                            try {
+                                YogaCourseEntity updatedEntity = db.courseDao().getAllCourses().stream()
+                                        .filter(e -> e.getLocalDatabaseId() == entity.getLocalDatabaseId())
+                                        .findFirst().orElse(null);
+                                if (updatedEntity != null) {
+                                    updatedEntity.setCloudSyncStatus(true);
+                                    updatedEntity.setCloudDatabaseId(ref.getKey());
+                                    db.courseDao().updateCourse(updatedEntity);
+                                    System.out.println("Marked new course as synced in local database: " + updatedEntity.getCourseName());
+                                }
+                            } catch (Exception e) {
+                                System.err.println("Error updating local sync status for new course: " + e.getMessage());
+                            }
+                        });
+                    } else {
+                        System.err.println("Failed to create course in Firebase: " + (error != null ? error.getMessage() : "Unknown error"));
                     }
                 });
             }
@@ -645,19 +709,65 @@ public class YogaCourseListActivity extends AppCompatActivity {
         List<YogaClassSessionEntity> unsynced = db.classSessionDao().getUnsyncedSessions();
         YogaFirebaseManager firebaseManager = new YogaFirebaseManager();
 
+        System.out.println("Starting session sync: Found " + unsynced.size() + " unsynced sessions");
+
         for (YogaClassSessionEntity entity : unsynced) {
-            // Note: entity.parentCourseId is localId, need to map to firebaseId if want to link correctly on cloud
-            YogaClassSession session = new YogaClassSession(
-                    null, entity.getCloudDatabaseId() != null ? entity.getCloudDatabaseId() : String.valueOf(entity.getParentCourseId()),
-                    entity.getClassDate(), entity.getAssignedInstructor(), entity.getClassNotes(), entity.getLocalDatabaseId()
-            );
-            firebaseManager.createNewClassSession(session, (error, ref) -> {
-                if (error == null) {
-                    entity.setCloudSyncStatus(true);
-                    entity.setCloudDatabaseId(ref.getKey());
-                    db.classSessionDao().updateClassSession(entity);
+            System.out.println("Syncing session: " + entity.getClassDate() + " (Local ID: " + entity.getLocalDatabaseId() + ", Cloud ID: " + entity.getCloudDatabaseId() + ", Deleted: " + entity.getIsDeleted() + ")");
+            
+            if (entity.getIsDeleted()) {
+                // This session was marked for deletion - delete from Firebase
+                if (entity.getCloudDatabaseId() != null && !entity.getCloudDatabaseId().isEmpty()) {
+                    firebaseManager.removeClassSession(entity.getCloudDatabaseId(), (error, ref) -> {
+                        if (error == null) {
+                            System.out.println("Successfully deleted session from Firebase: " + entity.getClassDate());
+                            // Now delete from local database
+                            runOnUiThread(() -> {
+                                try {
+                                    db.classSessionDao().deleteClassSession(entity);
+                                    System.out.println("Deleted session from local database after Firebase sync");
+                                } catch (Exception e) {
+                                    System.err.println("Error deleting local session after Firebase sync: " + e.getMessage());
+                                }
+                            });
+                        } else {
+                            System.err.println("Failed to delete session from Firebase: " + error.getMessage());
+                        }
+                    });
+                } else {
+                    // No cloud ID, just delete from local
+                    db.classSessionDao().deleteClassSession(entity);
+                    System.out.println("Deleted local-only session: " + entity.getClassDate());
                 }
-            });
+            } else {
+                // Normal session sync (create/update)
+                YogaClassSession session = new YogaClassSession(
+                        null, entity.getCloudDatabaseId() != null ? entity.getCloudDatabaseId() : String.valueOf(entity.getParentCourseId()),
+                        entity.getClassDate(), entity.getAssignedInstructor(), entity.getClassNotes(), entity.getLocalDatabaseId()
+                );
+                firebaseManager.createNewClassSession(session, (error, ref) -> {
+                    if (error == null && ref != null) {
+                        System.out.println("Successfully synced session: " + session.getDate());
+                        // Update the entity in a new transaction to ensure changes are persisted
+                        runOnUiThread(() -> {
+                            try {
+                                YogaClassSessionEntity updatedEntity = db.classSessionDao().getAllSessions().stream()
+                                        .filter(e -> e.getLocalDatabaseId() == entity.getLocalDatabaseId())
+                                        .findFirst().orElse(null);
+                                if (updatedEntity != null) {
+                                    updatedEntity.setCloudSyncStatus(true);
+                                    updatedEntity.setCloudDatabaseId(ref.getKey());
+                                    db.classSessionDao().updateClassSession(updatedEntity);
+                                    System.out.println("Marked session as synced in local database");
+                                }
+                            } catch (Exception e) {
+                                System.err.println("Error updating local session sync status: " + e.getMessage());
+                            }
+                        });
+                    } else {
+                        System.err.println("Failed to sync session: " + (error != null ? error.getMessage() : "Unknown error"));
+                    }
+                });
+            }
         }
     }
 
@@ -667,11 +777,17 @@ public class YogaCourseListActivity extends AppCompatActivity {
     private void performDataSync() {
         Toast.makeText(YogaCourseListActivity.this, "Syncing data...", Toast.LENGTH_SHORT).show();
 
+        // Debug: Show database state before sync
+        System.out.println("=== BEFORE SYNC ===");
+        debugDatabaseState();
+
         // Get unsynced data counts
         List<YogaCourseEntity> unsyncedCourses = db.courseDao().getUnsyncedCourses();
         List<YogaClassSessionEntity> unsyncedSessions = db.classSessionDao().getUnsyncedSessions();
 
         int totalUnsynced = unsyncedCourses.size() + unsyncedSessions.size();
+        
+        System.out.println("Sync started - Unsynced courses: " + unsyncedCourses.size() + ", Unsynced sessions: " + unsyncedSessions.size());
 
         if (totalUnsynced == 0) {
             Toast.makeText(YogaCourseListActivity.this, "All data is already synced!", Toast.LENGTH_SHORT).show();
@@ -683,12 +799,34 @@ public class YogaCourseListActivity extends AppCompatActivity {
         syncCoursesToFirebase();
         syncClassSessionsToFirebase();
 
-        // Re-enable button after a delay
+        // Wait longer for sync to complete and refresh the data
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             buttonSync.setEnabled(true);
-            Toast.makeText(YogaCourseListActivity.this, "Sync completed!", Toast.LENGTH_SHORT).show();
-            // Refresh the course list
+            
+            // Force refresh after sync
             loadCourses();
-        }, 2000); // 2 seconds delay
+            
+            // Debug: Show database state after sync
+            System.out.println("=== AFTER SYNC ===");
+            debugDatabaseState();
+            
+            // Check if sync was successful
+            List<YogaCourseEntity> stillUnsynced = db.courseDao().getUnsyncedCourses();
+            List<YogaClassSessionEntity> stillUnsyncedSessions = db.classSessionDao().getUnsyncedSessions();
+            int remainingUnsynced = stillUnsynced.size() + stillUnsyncedSessions.size();
+            
+            if (remainingUnsynced == 0) {
+                Toast.makeText(YogaCourseListActivity.this, "Sync completed successfully!", Toast.LENGTH_SHORT).show();
+                System.out.println("Sync completed - All data synced successfully");
+            } else {
+                Toast.makeText(YogaCourseListActivity.this, "Sync completed with " + remainingUnsynced + " items still pending", Toast.LENGTH_SHORT).show();
+                System.out.println("Sync completed but " + remainingUnsynced + " items still unsynced");
+                
+                // Show details of remaining unsynced items
+                for (YogaCourseEntity course : stillUnsynced) {
+                    System.out.println("  - Still unsynced course: " + course.getCourseName() + " (Local ID: " + course.getLocalDatabaseId() + ", Cloud ID: " + course.getCloudDatabaseId() + ")");
+                }
+            }
+        }, 5000); // Wait 5 seconds instead of 2 to ensure all async operations complete
     }
 } 

@@ -14,6 +14,7 @@ public class YogaClassSessionEntity {
     public String parentCourseId;
     public String cloudDatabaseId;
     public boolean cloudSyncStatus;
+    public boolean isDeleted = false; // For soft deletion
 
     // Class session details
     public String classDate;
@@ -34,9 +35,10 @@ public class YogaClassSessionEntity {
         this.assignedInstructor = assignedInstructor;
         this.classNotes = classNotes;
         this.cloudSyncStatus = cloudSyncStatus;
+        this.isDeleted = false; // Default value
     }
 
-    // Primary getters and setters
+    // Getters and setters
     public int getLocalDatabaseId() { return localDatabaseId; }
     public void setLocalDatabaseId(int localDatabaseId) { this.localDatabaseId = localDatabaseId; }
 
@@ -45,6 +47,9 @@ public class YogaClassSessionEntity {
 
     public String getCloudDatabaseId() { return cloudDatabaseId; }
     public void setCloudDatabaseId(String cloudDatabaseId) { this.cloudDatabaseId = cloudDatabaseId; }
+    
+    public boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(boolean isDeleted) { this.isDeleted = isDeleted; }
 
     public String getClassDate() { return classDate; }
     public void setClassDate(String classDate) { this.classDate = classDate; }

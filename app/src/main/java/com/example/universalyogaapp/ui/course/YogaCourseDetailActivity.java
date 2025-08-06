@@ -29,6 +29,8 @@ import com.example.universalyogaapp.dao.YogaCourseDao;
 import com.example.universalyogaapp.db.YogaCourseEntity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import com.example.universalyogaapp.model.YogaClassSession;
 import java.util.ArrayList;
 import java.util.List;
@@ -181,9 +183,46 @@ public class YogaCourseDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Load course from Firebase
+     * Load course from local database first, then Firebase if not found
      */
     private void loadCourse(String id) {
+        // Run database query on background thread
+        new Thread(() -> {
+            // First, try to load from local database
+            YogaCourseEntity localEntity = db.courseDao().getCourseByCloudId(id);
+            
+            runOnUiThread(() -> {
+                if (localEntity != null) {
+                    // Found in local database - use local data (which may include offline edits)
+                    YogaCourse course = new YogaCourse(
+                        localEntity.getCloudDatabaseId(),
+                        localEntity.getCourseName(),
+                        localEntity.getWeeklySchedule(),
+                        localEntity.getClassTime(),
+                        localEntity.getInstructorName(),
+                        localEntity.getMaxStudents(),
+                        localEntity.getCoursePrice(),
+                        localEntity.getSessionDuration(),
+                        localEntity.getCourseDescription(),
+                        localEntity.getAdditionalNotes(),
+                        localEntity.getNextClassDate(),
+                        localEntity.getLocalDatabaseId()
+                    );
+                    course.setId(localEntity.getCloudDatabaseId());
+                    showCourseInfo(course);
+                    loadClassSessions(course.getId());
+                } else {
+                    // Not found in local database, load from Firebase
+                    loadCourseFromFirebase(id);
+                }
+            });
+        }).start();
+    }
+    
+    /**
+     * Load course from Firebase
+     */
+    private void loadCourseFromFirebase(String id) {
         firebaseManager.fetchCourseById(id, new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -211,6 +250,30 @@ public class YogaCourseDetailActivity extends AppCompatActivity {
                 if (course != null) {
                     course.setId(snapshot.getKey());
                     course.setLocalId(0); // When getting from Firebase, localId doesn't exist, set 0
+                    
+                    // Also save to local database for future use
+                    new Thread(() -> {
+                        YogaCourseEntity entity = new YogaCourseEntity();
+                        entity.setCloudDatabaseId(course.getId());
+                        entity.setCourseName(course.getCourseName());
+                        entity.setWeeklySchedule(course.getSchedule());
+                        entity.setClassTime(course.getTime());
+                        entity.setInstructorName(course.getTeacher());
+                        entity.setMaxStudents(course.getCapacity());
+                        entity.setCoursePrice(course.getPrice());
+                        entity.setSessionDuration(course.getDuration());
+                        entity.setCourseDescription(course.getDescription());
+                        entity.setAdditionalNotes(course.getNote());
+                        entity.setNextClassDate(course.getUpcomingDate());
+                        entity.setCloudSyncStatus(true); // It's from Firebase, so it's synced
+                        
+                        // Check if course already exists in local DB
+                        YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(course.getId());
+                        if (existingEntity == null) {
+                            db.courseDao().insertCourse(entity);
+                        }
+                    }).start();
+                    
                     showCourseInfo(course);
                     loadClassSessions(course.getId());
                 }
@@ -357,41 +420,93 @@ public class YogaCourseDetailActivity extends AppCompatActivity {
      * Delete class session
      */
     private void deleteClassSession(YogaClassSession session) {
-        firebaseManager.removeClassSession(session.getId(), new DatabaseReference.CompletionListener() {
-            @Override
-            public void onComplete(DatabaseError error, DatabaseReference ref) {
-                if (error == null) {
-                    // Delete from local database - try multiple approaches
-                    YogaClassSessionEntity entity = db.classSessionDao().getSessionByCloudId(session.getId());
-                    if (entity == null) {
-                        // Try to find by local ID if cloud ID not found
-                        // This might happen if the session was created locally but not synced yet
-                        List<YogaClassSessionEntity> allSessions = db.classSessionDao().getSessionsForCourse(courseId);
-                        for (YogaClassSessionEntity localEntity : allSessions) {
-                            if (localEntity.getLocalDatabaseId() == session.getLocalId() || 
-                                (session.getId() != null && session.getId().equals(localEntity.getCloudDatabaseId()))) {
-                                entity = localEntity;
-                                break;
+        if (isNetworkAvailable()) {
+            // ONLINE: Delete from Firebase first, then local
+            firebaseManager.removeClassSession(session.getId(), new DatabaseReference.CompletionListener() {
+                @Override
+                public void onComplete(DatabaseError error, DatabaseReference ref) {
+                    if (error == null) {
+                        // Delete from local database - try multiple approaches
+                        YogaClassSessionEntity entity = db.classSessionDao().getSessionByCloudId(session.getId());
+                        if (entity == null) {
+                            // Try to find by local ID if cloud ID not found
+                            List<YogaClassSessionEntity> allSessions = db.classSessionDao().getSessionsForCourse(courseId);
+                            for (YogaClassSessionEntity localEntity : allSessions) {
+                                if (localEntity.getLocalDatabaseId() == session.getLocalId() || 
+                                    (session.getId() != null && session.getId().equals(localEntity.getCloudDatabaseId()))) {
+                                    entity = localEntity;
+                                    break;
+                                }
                             }
                         }
+                        
+                        if (entity != null) {
+                            db.classSessionDao().deleteClassSession(entity);
+                        }
+                        
+                        // Refresh the list on UI thread
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseDetailActivity.this, "Class session deleted and synced!", Toast.LENGTH_SHORT).show();
+                            loadClassSessions(courseId);
+                        });
+                    } else {
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseDetailActivity.this, "Error deleting class session: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
                     }
-                    
-                    if (entity != null) {
+                }
+            });
+        } else {
+            // OFFLINE: Mark for deletion instead of deleting immediately
+            new Thread(() -> {
+                YogaClassSessionEntity entity = db.classSessionDao().getSessionByCloudId(session.getId());
+                if (entity == null) {
+                    // Try to find by local ID if cloud ID not found
+                    List<YogaClassSessionEntity> allSessions = db.classSessionDao().getAllSessions();
+                    for (YogaClassSessionEntity localEntity : allSessions) {
+                        if (localEntity.getLocalDatabaseId() == session.getLocalId() || 
+                            (session.getId() != null && session.getId().equals(localEntity.getCloudDatabaseId()))) {
+                            entity = localEntity;
+                            break;
+                        }
+                    }
+                }
+                
+                if (entity != null) {
+                    if (entity.getCloudDatabaseId() != null && !entity.getCloudDatabaseId().isEmpty()) {
+                        // Session exists in Firebase - mark for deletion and set to unsync
+                        entity.setIsDeleted(true);
+                        entity.setCloudSyncStatus(false); // Mark as needing sync
+                        db.classSessionDao().updateClassSession(entity);
+                        
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseDetailActivity.this, "Class session marked for deletion. Please sync to complete deletion.", Toast.LENGTH_LONG).show();
+                            loadClassSessions(courseId);
+                        });
+                    } else {
+                        // Session only exists locally - safe to delete immediately
                         db.classSessionDao().deleteClassSession(entity);
+                        
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseDetailActivity.this, "Class session deleted.", Toast.LENGTH_SHORT).show();
+                            loadClassSessions(courseId);
+                        });
                     }
-                    
-                    // Refresh the list on UI thread
-                    runOnUiThread(() -> {
-                        Toast.makeText(YogaCourseDetailActivity.this, "Class session deleted successfully", Toast.LENGTH_SHORT).show();
-                        // Reload class sessions to refresh the list
-                        loadClassSessions(courseId);
-                    });
                 } else {
                     runOnUiThread(() -> {
-                        Toast.makeText(YogaCourseDetailActivity.this, "Error deleting class session: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(YogaCourseDetailActivity.this, "Error: Could not find class session to delete.", Toast.LENGTH_SHORT).show();
                     });
                 }
-            }
-        });
+            }).start();
+        }
+    }
+    
+    /**
+     * Check network availability
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 } 

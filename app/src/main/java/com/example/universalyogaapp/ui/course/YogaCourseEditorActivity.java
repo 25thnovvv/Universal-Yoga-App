@@ -129,21 +129,83 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
     }
 
     /**
-     * Load course from Firebase
+     * Load course from local database first, then Firebase if not found
      */
     private void loadCourse(String id) {
+        // Run database query on background thread
+        new Thread(() -> {
+            // First, try to load from local database
+            YogaCourseEntity localEntity = db.courseDao().getCourseByCloudId(id);
+            
+            runOnUiThread(() -> {
+                if (localEntity != null) {
+                    // Found in local database - use local data (which may include offline edits)
+                    editingCourse = new YogaCourse(
+                        localEntity.getCloudDatabaseId(),
+                        localEntity.getCourseName(),
+                        localEntity.getWeeklySchedule(),
+                        localEntity.getClassTime(),
+                        localEntity.getInstructorName(),
+                        localEntity.getMaxStudents(),
+                        localEntity.getCoursePrice(),
+                        localEntity.getSessionDuration(),
+                        localEntity.getCourseDescription(),
+                        localEntity.getAdditionalNotes(),
+                        localEntity.getNextClassDate(),
+                        localEntity.getLocalDatabaseId()
+                    );
+                    editingCourse.setId(localEntity.getCloudDatabaseId());
+                    fillCourseData(editingCourse);
+                } else {
+                    // Not found in local database, load from Firebase
+                    loadCourseFromFirebase(id);
+                }
+            });
+        }).start();
+    }
+    
+    /**
+     * Load course from Firebase
+     */
+    private void loadCourseFromFirebase(String id) {
         firebaseManager.fetchCourseById(id, new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 editingCourse = snapshot.getValue(YogaCourse.class);
                 if (editingCourse != null) {
                     editingCourse.setId(snapshot.getKey());
+                    
+                    // Also save to local database for future use
+                    YogaCourseEntity entity = new YogaCourseEntity();
+                    entity.setCloudDatabaseId(editingCourse.getId());
+                    entity.setCourseName(editingCourse.getCourseName());
+                    entity.setWeeklySchedule(editingCourse.getWeeklySchedule());
+                    entity.setClassTime(editingCourse.getClassTime());
+                    entity.setInstructorName(editingCourse.getInstructorName());
+                    entity.setMaxStudents(editingCourse.getMaxStudents());
+                    entity.setCoursePrice(editingCourse.getCoursePrice());
+                    entity.setSessionDuration(editingCourse.getSessionDuration());
+                    entity.setCourseDescription(editingCourse.getCourseDescription());
+                    entity.setAdditionalNotes(editingCourse.getAdditionalNotes());
+                    entity.setNextClassDate(editingCourse.getNextClassDate());
+                    entity.setCloudSyncStatus(true); // It's from Firebase, so it's synced
+                    
+                    // Check if course already exists in local DB
+                    YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(editingCourse.getId());
+                    if (existingEntity == null) {
+                        db.courseDao().insertCourse(entity);
+                    }
+                    
                     fillCourseData(editingCourse);
+                } else {
+                    Toast.makeText(YogaCourseEditorActivity.this, "Course not found", Toast.LENGTH_SHORT).show();
+                    finish();
                 }
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(YogaCourseEditorActivity.this, "Error loading data", Toast.LENGTH_SHORT).show();
+                System.err.println("Error loading course from Firebase: " + error.getMessage());
             }
         });
     }
@@ -203,14 +265,14 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
         String durationStr = editTextDuration.getText().toString().trim();
         String description = editTextDescription.getText().toString().trim();
         String note = editTextNote.getText().toString().trim();
-        
+
         if (TextUtils.isEmpty(name) || TextUtils.isEmpty(schedule) || TextUtils.isEmpty(teacher) ||
                 TextUtils.isEmpty(capacityStr) || TextUtils.isEmpty(priceStr) ||
                 TextUtils.isEmpty(durationStr)) {
             Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+
         StringBuilder message = new StringBuilder();
         message.append("Name: ").append(name).append("\n");
         message.append("Schedule: ").append(schedule).append("\n");
@@ -221,7 +283,7 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
         message.append("Duration: ").append(durationStr).append("\n");
         message.append("Description: ").append(description).append("\n");
         message.append("Note: ").append(note).append("\n");
-        
+
         new AlertDialog.Builder(this)
                 .setTitle("Confirm Course Details")
                 .setMessage(message.toString())
@@ -301,28 +363,44 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
                 firebaseManager.updateExistingCourse(course, listener);
             } else {
                 // OFFLINE: Update local only
-                YogaCourseEntity entity = new YogaCourseEntity();
-                entity.setLocalDatabaseId(editingCourse.getLocalId());
-                entity.setCloudDatabaseId(editingCourse.getId());
-                entity.setCourseName(name);
-                entity.setWeeklySchedule(schedule);
-                entity.setClassTime(time);
-                entity.setInstructorName(teacher);
-                entity.setMaxStudents(capacity);
-                entity.setCoursePrice(price);
-                entity.setSessionDuration(duration);
-                entity.setCourseDescription(description);
-                entity.setAdditionalNotes(note);
-                entity.setNextClassDate(upcomingDate);
-                entity.setCloudSyncStatus(false);
+                // Run database operations on background thread
+                new Thread(() -> {
+                    // First, get the existing entity to preserve the primary key
+                    YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(editingCourse.getId());
+                    if (existingEntity != null) {
+                        // Update the existing entity with new data
+                        existingEntity.setCourseName(name);
+                        existingEntity.setWeeklySchedule(schedule);
+                        existingEntity.setClassTime(time);
+                        existingEntity.setInstructorName(teacher);
+                        existingEntity.setMaxStudents(capacity);
+                        existingEntity.setCoursePrice(price);
+                        existingEntity.setSessionDuration(duration);
+                        existingEntity.setCourseDescription(description);
+                        existingEntity.setAdditionalNotes(note);
+                        existingEntity.setNextClassDate(upcomingDate);
+                        existingEntity.setCloudSyncStatus(false);
 
-                db.courseDao().updateCourse(entity);
-                System.out.println("Updated course offline: " + name + " (Local ID: " + editingCourse.getLocalId() + ", Firebase ID: " + editingCourse.getId() + ")");
-                Toast.makeText(YogaCourseEditorActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
-                // Set result to indicate data was updated
-                setResult(RESULT_OK);
-                // Add a small delay to ensure database transaction is committed
-                new android.os.Handler().postDelayed(() -> finish(), 100);
+                        db.courseDao().updateCourse(existingEntity);
+                        
+                        // Small delay to ensure transaction completes
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseEditorActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
+                            setResult(RESULT_OK);
+                            new android.os.Handler().postDelayed(() -> finish(), 100);
+                        });
+                    } else {
+                        runOnUiThread(() -> {
+                            Toast.makeText(YogaCourseEditorActivity.this, "Error updating course offline.", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
             }
         } else {
             // CREATING NEW COURSE
@@ -349,7 +427,7 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
                         entity.setCloudDatabaseId(ref.getKey());
                         entity.setCloudSyncStatus(true);
                         long localId = db.courseDao().insertCourse(entity);
-                        
+
                         runOnUiThread(() -> {
                             Toast.makeText(YogaCourseEditorActivity.this, "Course saved and synced!", Toast.LENGTH_SHORT).show();
                             // Set result to indicate data was updated
