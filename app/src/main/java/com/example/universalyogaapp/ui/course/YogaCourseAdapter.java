@@ -37,7 +37,8 @@ public class YogaCourseAdapter extends RecyclerView.Adapter<YogaCourseAdapter.Co
      * Update course data list
      */
     public void updateCourseList(List<YogaCourse> courses) {
-        this.courseDataList = courses;
+        this.courseDataList.clear();
+        this.courseDataList.addAll(courses);
         notifyDataSetChanged();
     }
 

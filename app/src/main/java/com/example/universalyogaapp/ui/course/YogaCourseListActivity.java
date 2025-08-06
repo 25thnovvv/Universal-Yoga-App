@@ -25,6 +25,10 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import androidx.room.Room;
 import com.example.universalyogaapp.db.YogaAppDatabase;
 import com.example.universalyogaapp.db.YogaCourseEntity;
@@ -37,6 +41,9 @@ import java.util.Date;
 import java.util.Locale;
 
 public class YogaCourseListActivity extends AppCompatActivity {
+    // Constants
+    private static final int REQUEST_ADD_EDIT_COURSE = 1001;
+    
     // UI Components
     private RecyclerView recyclerView;
     private YogaCourseAdapter adapter;
@@ -94,7 +101,7 @@ public class YogaCourseListActivity extends AppCompatActivity {
             public void onItemClick(YogaCourse course) {
                 Intent intent = new Intent(YogaCourseListActivity.this, YogaCourseDetailActivity.class);
                 intent.putExtra("course_id", course.getId());
-                startActivity(intent);
+                startActivityForResult(intent, REQUEST_ADD_EDIT_COURSE);
             }
         });
 
@@ -103,7 +110,7 @@ public class YogaCourseListActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(YogaCourseListActivity.this, YogaCourseEditorActivity.class);
-                startActivity(intent);
+                startActivityForResult(intent, REQUEST_ADD_EDIT_COURSE);
             }
         });
 
@@ -136,15 +143,79 @@ public class YogaCourseListActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        loadCourses();
+        // Force cleanup and refresh the course list when returning to this activity
+        forceCleanupAndRefresh();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_ADD_EDIT_COURSE && resultCode == RESULT_OK) {
+            // Data was updated, force cleanup and refresh the list immediately
+            forceCleanupAndRefresh();
+        }
     }
 
     /**
      * Load courses from database
      */
     private void loadCourses() {
+        // Clean up duplicates first
+        cleanupDuplicateCourses();
+        
         courseList.clear();
         fullCourseList.clear();
+        List<YogaCourseEntity> entities = db.courseDao().getAllCourses();
+
+        // Use a Set to track unique courses by name to avoid duplicates in display
+        Set<String> addedCourseNames = new HashSet<>();
+
+        for (YogaCourseEntity entity : entities) {
+            String courseName = entity.getCourseName();
+            
+            // Only add if we haven't seen this course name before
+            if (courseName != null && !addedCourseNames.contains(courseName)) {
+                YogaCourse course = new YogaCourse(
+                        entity.getCloudDatabaseId(),
+                        entity.getCourseName(),
+                        entity.getWeeklySchedule(),
+                        entity.getClassTime(),
+                        entity.getInstructorName(),
+                        entity.getMaxStudents(),
+                        entity.getCoursePrice(),
+                        entity.getSessionDuration(),
+                        entity.getCourseDescription(),
+                        entity.getAdditionalNotes(),
+                        entity.getNextClassDate(),
+                        entity.getLocalDatabaseId()
+                );
+                courseList.add(course);
+                fullCourseList.add(course);
+                addedCourseNames.add(courseName);
+                
+                System.out.println("Added course to display: " + courseName);
+            } else if (courseName != null) {
+                System.out.println("Skipped duplicate course: " + courseName);
+            }
+        }
+
+        adapter.updateCourseList(courseList);
+        System.out.println("Loaded " + courseList.size() + " unique courses");
+    }
+
+    /**
+     * Force refresh the course list with proper notification
+     */
+    private void refreshCourseList() {
+        // Clean up any duplicate courses first
+        cleanupDuplicateCourses();
+        
+        // Clear existing data
+        courseList.clear();
+        fullCourseList.clear();
+        
+        // Load fresh data from database
         List<YogaCourseEntity> entities = db.courseDao().getAllCourses();
 
         for (YogaCourseEntity entity : entities) {
@@ -166,7 +237,311 @@ public class YogaCourseListActivity extends AppCompatActivity {
             fullCourseList.add(course);
         }
 
-        adapter.updateCourseList(courseList);
+        // Force adapter to refresh with new data
+        adapter.updateCourseList(new ArrayList<>(courseList));
+        
+        // Log for debugging
+        System.out.println("Refreshed course list with " + courseList.size() + " courses");
+        
+        // Also sync from Firebase to ensure data consistency
+        syncFromFirebase();
+    }
+
+    /**
+     * Clean up duplicate courses based on name
+     */
+    private void cleanupDuplicateCourses() {
+        List<YogaCourseEntity> allCourses = db.courseDao().getAllCourses();
+        Map<String, List<YogaCourseEntity>> coursesByName = new HashMap<>();
+        
+        System.out.println("Starting cleanup of " + allCourses.size() + " total courses");
+        
+        // Group courses by name
+        for (YogaCourseEntity course : allCourses) {
+            String name = course.getCourseName();
+            if (name != null) {
+                coursesByName.computeIfAbsent(name, k -> new ArrayList<>()).add(course);
+            }
+        }
+        
+        int totalDeleted = 0;
+        
+        // Remove duplicates, keeping the one with Firebase ID if available
+        for (Map.Entry<String, List<YogaCourseEntity>> entry : coursesByName.entrySet()) {
+            List<YogaCourseEntity> duplicates = entry.getValue();
+            if (duplicates.size() > 1) {
+                System.out.println("Found " + duplicates.size() + " duplicates for course: " + entry.getKey());
+                
+                // Find the course with Firebase ID (preferred)
+                YogaCourseEntity courseToKeep = null;
+                for (YogaCourseEntity course : duplicates) {
+                    if (course.getCloudDatabaseId() != null && !course.getCloudDatabaseId().isEmpty()) {
+                        courseToKeep = course;
+                        break;
+                    }
+                }
+                
+                // If no course with Firebase ID, keep the one with the highest local ID (most recent)
+                if (courseToKeep == null) {
+                    courseToKeep = duplicates.get(0);
+                    for (YogaCourseEntity course : duplicates) {
+                        if (course.getLocalDatabaseId() > courseToKeep.getLocalDatabaseId()) {
+                            courseToKeep = course;
+                        }
+                    }
+                }
+                
+                // Delete the rest
+                for (YogaCourseEntity course : duplicates) {
+                    if (course.getLocalDatabaseId() != courseToKeep.getLocalDatabaseId()) {
+                        db.courseDao().deleteCourse(course);
+                        totalDeleted++;
+                        System.out.println("Deleted duplicate course: " + course.getCourseName() + " (ID: " + course.getLocalDatabaseId() + ")");
+                    }
+                }
+            }
+        }
+        
+        System.out.println("Cleanup completed. Deleted " + totalDeleted + " duplicate courses");
+    }
+
+    /**
+     * Force cleanup and refresh course list
+     */
+    private void forceCleanupAndRefresh() {
+        // Debug: Show current database state
+        debugDatabaseState();
+        
+        // First, clean up any duplicates in the database
+        cleanupDuplicateCourses();
+        
+        // Then load courses from database (which will skip duplicates in display)
+        loadCourses();
+        
+        // Finally, sync from Firebase to ensure data consistency
+        syncFromFirebase();
+    }
+
+    /**
+     * Debug method to show current database state
+     */
+    private void debugDatabaseState() {
+        List<YogaCourseEntity> allCourses = db.courseDao().getAllCourses();
+        System.out.println("=== DATABASE DEBUG ===");
+        System.out.println("Total courses in database: " + allCourses.size());
+        
+        Map<String, List<YogaCourseEntity>> coursesByName = new HashMap<>();
+        for (YogaCourseEntity course : allCourses) {
+            String name = course.getCourseName();
+            if (name != null) {
+                coursesByName.computeIfAbsent(name, k -> new ArrayList<>()).add(course);
+            }
+        }
+        
+        for (Map.Entry<String, List<YogaCourseEntity>> entry : coursesByName.entrySet()) {
+            List<YogaCourseEntity> courses = entry.getValue();
+            if (courses.size() > 1) {
+                System.out.println("DUPLICATE FOUND: " + entry.getKey() + " (" + courses.size() + " instances)");
+                for (YogaCourseEntity course : courses) {
+                    System.out.println("  - ID: " + course.getLocalDatabaseId() + 
+                                     ", Firebase ID: " + course.getCloudDatabaseId() + 
+                                     ", Name: " + course.getCourseName());
+                }
+            }
+        }
+        System.out.println("=== END DEBUG ===");
+    }
+
+    /**
+     * Force refresh course list with immediate sync from Firebase
+     */
+    private void forceRefreshCourseList() {
+        // First, sync from Firebase to ensure we have the latest data
+        firebaseManager.fetchAllCourses(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                final boolean[] hasChanges = {false};
+                
+                for (DataSnapshot courseSnapshot : snapshot.getChildren()) {
+                    String firebaseId = courseSnapshot.getKey();
+                    String name = courseSnapshot.child("name").getValue(String.class);
+                    String schedule = courseSnapshot.child("schedule").getValue(String.class);
+                    String time = courseSnapshot.child("time").getValue(String.class);
+                    String teacher = courseSnapshot.child("teacher").getValue(String.class);
+                    Integer capacity = courseSnapshot.child("capacity").getValue(Integer.class);
+                    Double price = courseSnapshot.child("price").getValue(Double.class);
+                    Integer duration = courseSnapshot.child("duration").getValue(Integer.class);
+                    String description = courseSnapshot.child("description").getValue(String.class);
+                    String note = courseSnapshot.child("note").getValue(String.class);
+                    String upcomingDate = courseSnapshot.child("upcomingDate").getValue(String.class);
+
+                    if (name != null) {
+                        // Check if course exists in local database
+                        YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(firebaseId);
+                        
+                        if (existingEntity != null) {
+                            // Update existing course if data is different
+                            boolean needsUpdate = !name.equals(existingEntity.getCourseName()) ||
+                                    !schedule.equals(existingEntity.getWeeklySchedule()) ||
+                                    !time.equals(existingEntity.getClassTime()) ||
+                                    !teacher.equals(existingEntity.getInstructorName());
+                            
+                            if (needsUpdate) {
+                                existingEntity.setCourseName(name);
+                                existingEntity.setWeeklySchedule(schedule);
+                                existingEntity.setClassTime(time);
+                                existingEntity.setInstructorName(teacher);
+                                existingEntity.setMaxStudents(capacity != null ? capacity : 0);
+                                existingEntity.setCoursePrice(price != null ? price : 0.0);
+                                existingEntity.setSessionDuration(duration != null ? duration : 0);
+                                existingEntity.setCourseDescription(description);
+                                existingEntity.setAdditionalNotes(note);
+                                existingEntity.setNextClassDate(upcomingDate);
+                                existingEntity.setCloudSyncStatus(true);
+                                
+                                db.courseDao().updateCourse(existingEntity);
+                                hasChanges[0] = true;
+                                System.out.println("Updated existing course: " + name);
+                            }
+                        } else {
+                            // Check if there's a course with the same name to avoid duplicates
+                            List<YogaCourseEntity> coursesWithSameName = db.courseDao().getCoursesByName(name);
+                            if (coursesWithSameName.isEmpty()) {
+                                // Insert new course only if no course with same name exists
+                                YogaCourseEntity newEntity = new YogaCourseEntity();
+                                newEntity.setCloudDatabaseId(firebaseId);
+                                newEntity.setCourseName(name);
+                                newEntity.setWeeklySchedule(schedule);
+                                newEntity.setClassTime(time);
+                                newEntity.setInstructorName(teacher);
+                                newEntity.setMaxStudents(capacity != null ? capacity : 0);
+                                newEntity.setCoursePrice(price != null ? price : 0.0);
+                                newEntity.setSessionDuration(duration != null ? duration : 0);
+                                newEntity.setCourseDescription(description);
+                                newEntity.setAdditionalNotes(note);
+                                newEntity.setNextClassDate(upcomingDate);
+                                newEntity.setCloudSyncStatus(true);
+                                
+                                db.courseDao().insertCourse(newEntity);
+                                hasChanges[0] = true;
+                                System.out.println("Inserted new course: " + name);
+                            } else {
+                                // Update the existing course with same name to have the Firebase ID
+                                YogaCourseEntity existingCourse = coursesWithSameName.get(0);
+                                existingCourse.setCloudDatabaseId(firebaseId);
+                                existingCourse.setCloudSyncStatus(true);
+                                db.courseDao().updateCourse(existingCourse);
+                                hasChanges[0] = true;
+                                System.out.println("Updated existing course with Firebase ID: " + name);
+                            }
+                        }
+                    }
+                }
+                
+                // Refresh the list after syncing
+                runOnUiThread(() -> {
+                    loadCourses();
+                    if (hasChanges[0]) {
+                        System.out.println("Force refreshed course list with changes from Firebase");
+                    } else {
+                        System.out.println("Force refreshed course list - no changes detected");
+                    }
+                });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                System.out.println("Failed to force refresh from Firebase: " + error.getMessage());
+                // Fallback to local database
+                runOnUiThread(() -> {
+                    loadCourses();
+                });
+            }
+        });
+    }
+
+    /**
+     * Sync data from Firebase to local database
+     */
+    private void syncFromFirebase() {
+        firebaseManager.fetchAllCourses(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot courseSnapshot : snapshot.getChildren()) {
+                    String firebaseId = courseSnapshot.getKey();
+                    String name = courseSnapshot.child("name").getValue(String.class);
+                    String schedule = courseSnapshot.child("schedule").getValue(String.class);
+                    String time = courseSnapshot.child("time").getValue(String.class);
+                    String teacher = courseSnapshot.child("teacher").getValue(String.class);
+                    Integer capacity = courseSnapshot.child("capacity").getValue(Integer.class);
+                    Double price = courseSnapshot.child("price").getValue(Double.class);
+                    Integer duration = courseSnapshot.child("duration").getValue(Integer.class);
+                    String description = courseSnapshot.child("description").getValue(String.class);
+                    String note = courseSnapshot.child("note").getValue(String.class);
+                    String upcomingDate = courseSnapshot.child("upcomingDate").getValue(String.class);
+
+                    if (name != null) {
+                        // Check if course exists in local database
+                        YogaCourseEntity existingEntity = db.courseDao().getCourseByCloudId(firebaseId);
+                        
+                        if (existingEntity != null) {
+                            // Update existing course
+                            existingEntity.setCourseName(name);
+                            existingEntity.setWeeklySchedule(schedule);
+                            existingEntity.setClassTime(time);
+                            existingEntity.setInstructorName(teacher);
+                            existingEntity.setMaxStudents(capacity != null ? capacity : 0);
+                            existingEntity.setCoursePrice(price != null ? price : 0.0);
+                            existingEntity.setSessionDuration(duration != null ? duration : 0);
+                            existingEntity.setCourseDescription(description);
+                            existingEntity.setAdditionalNotes(note);
+                            existingEntity.setNextClassDate(upcomingDate);
+                            existingEntity.setCloudSyncStatus(true);
+                            
+                            db.courseDao().updateCourse(existingEntity);
+                        } else {
+                            // Check if there's a course with the same name to avoid duplicates
+                            List<YogaCourseEntity> coursesWithSameName = db.courseDao().getCoursesByName(name);
+                            if (coursesWithSameName.isEmpty()) {
+                                // Insert new course only if no course with same name exists
+                                YogaCourseEntity newEntity = new YogaCourseEntity();
+                                newEntity.setCloudDatabaseId(firebaseId);
+                                newEntity.setCourseName(name);
+                                newEntity.setWeeklySchedule(schedule);
+                                newEntity.setClassTime(time);
+                                newEntity.setInstructorName(teacher);
+                                newEntity.setMaxStudents(capacity != null ? capacity : 0);
+                                newEntity.setCoursePrice(price != null ? price : 0.0);
+                                newEntity.setSessionDuration(duration != null ? duration : 0);
+                                newEntity.setCourseDescription(description);
+                                newEntity.setAdditionalNotes(note);
+                                newEntity.setNextClassDate(upcomingDate);
+                                newEntity.setCloudSyncStatus(true);
+                                
+                                db.courseDao().insertCourse(newEntity);
+                            } else {
+                                // Update the existing course with same name to have the Firebase ID
+                                YogaCourseEntity existingCourse = coursesWithSameName.get(0);
+                                existingCourse.setCloudDatabaseId(firebaseId);
+                                existingCourse.setCloudSyncStatus(true);
+                                db.courseDao().updateCourse(existingCourse);
+                            }
+                        }
+                    }
+                }
+                
+                // Refresh the list after syncing
+                runOnUiThread(() -> {
+                    loadCourses();
+                    System.out.println("Synced from Firebase and refreshed course list");
+                });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                System.out.println("Failed to sync from Firebase: " + error.getMessage());
+            }
+        });
     }
 
     /**
@@ -236,16 +611,30 @@ public class YogaCourseListActivity extends AppCompatActivity {
 
         for (YogaCourseEntity entity : unsynced) {
             YogaCourse course = new YogaCourse(
-                    null, entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
+                    entity.getCloudDatabaseId(), entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
                     entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
             );
-            firebaseManager.createNewCourse(course, (error, ref) -> {
-                if (error == null) {
-                    entity.setCloudSyncStatus(true);
-                    entity.setCloudDatabaseId(ref.getKey());
-                    db.courseDao().updateCourse(entity);
-                }
-            });
+
+            if (entity.getCloudDatabaseId() != null && !entity.getCloudDatabaseId().isEmpty()) {
+                // Course already exists in Firebase, update it
+                course.setId(entity.getCloudDatabaseId());
+                firebaseManager.updateExistingCourse(course, (error, ref) -> {
+                    if (error == null) {
+                        entity.setCloudSyncStatus(true);
+                        db.courseDao().updateCourse(entity);
+                    }
+                });
+            } else {
+                // Course doesn't exist in Firebase, create new one
+                course.setId(null);
+                firebaseManager.createNewCourse(course, (error, ref) -> {
+                    if (error == null) {
+                        entity.setCloudSyncStatus(true);
+                        entity.setCloudDatabaseId(ref.getKey());
+                        db.courseDao().updateCourse(entity);
+                    }
+                });
+            }
         }
     }
 

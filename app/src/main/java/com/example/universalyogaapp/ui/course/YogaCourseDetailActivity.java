@@ -37,6 +37,9 @@ import com.example.universalyogaapp.dao.YogaClassSessionDao;
 import com.example.universalyogaapp.db.YogaClassSessionEntity;
 
 public class YogaCourseDetailActivity extends AppCompatActivity {
+    // Constants
+    private static final int REQUEST_EDIT_COURSE = 2001;
+    
     // UI Components
     private TextView textViewName, textViewSchedule, textViewTime, textViewTeacher, textViewCapacity, textViewPrice, textViewDuration, textViewDescription, textViewNote;
     private Button buttonEdit, buttonDelete;
@@ -105,7 +108,7 @@ public class YogaCourseDetailActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(YogaCourseDetailActivity.this, YogaCourseEditorActivity.class);
                 intent.putExtra("course_id", courseId);
-                startActivity(intent);
+                startActivityForResult(intent, REQUEST_EDIT_COURSE);
             }
         });
 
@@ -162,6 +165,18 @@ public class YogaCourseDetailActivity extends AppCompatActivity {
             loadClassSessions(course.getId());
         } else if (courseId != null) {
             loadClassSessions(courseId);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_EDIT_COURSE && resultCode == RESULT_OK) {
+            // Course was edited, refresh the course data
+            if (courseId != null) {
+                loadCourse(courseId);
+            }
         }
     }
 

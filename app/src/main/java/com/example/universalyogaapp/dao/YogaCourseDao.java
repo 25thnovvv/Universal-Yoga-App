@@ -23,6 +23,12 @@ public interface YogaCourseDao {
     @Query("SELECT * FROM courses")
     List<YogaCourseEntity> getAllCourses();
 
+    @Query("SELECT * FROM courses WHERE cloudDatabaseId = :cloudDatabaseId")
+    YogaCourseEntity getCourseByCloudId(String cloudDatabaseId);
+
+    @Query("SELECT * FROM courses WHERE courseName = :courseName")
+    List<YogaCourseEntity> getCoursesByName(String courseName);
+
     @Query("DELETE FROM courses WHERE cloudDatabaseId = :cloudDatabaseId")
     void deleteByCloudId(String cloudDatabaseId);
 

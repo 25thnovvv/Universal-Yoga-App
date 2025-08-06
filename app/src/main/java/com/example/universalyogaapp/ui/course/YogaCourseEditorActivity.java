@@ -283,12 +283,18 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
                         db.courseDao().updateCourse(entity);
                         runOnUiThread(() -> {
                             Toast.makeText(YogaCourseEditorActivity.this, "Course updated and synced!", Toast.LENGTH_SHORT).show();
-                            finish();
+                            // Set result to indicate data was updated
+                            setResult(RESULT_OK);
+                            // Add a small delay to ensure database transaction is committed
+                            new android.os.Handler().postDelayed(() -> finish(), 100);
                         });
                     } else {
                         runOnUiThread(() -> {
                             Toast.makeText(YogaCourseEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
-                            finish();
+                            // Set result to indicate data was updated
+                            setResult(RESULT_OK);
+                            // Add a small delay to ensure database transaction is committed
+                            new android.os.Handler().postDelayed(() -> finish(), 100);
                         });
                     }
                 };
@@ -311,8 +317,12 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
                 entity.setCloudSyncStatus(false);
 
                 db.courseDao().updateCourse(entity);
+                System.out.println("Updated course offline: " + name + " (Local ID: " + editingCourse.getLocalId() + ", Firebase ID: " + editingCourse.getId() + ")");
                 Toast.makeText(YogaCourseEditorActivity.this, "Course updated locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
-                finish();
+                // Set result to indicate data was updated
+                setResult(RESULT_OK);
+                // Add a small delay to ensure database transaction is committed
+                new android.os.Handler().postDelayed(() -> finish(), 100);
             }
         } else {
             // CREATING NEW COURSE
@@ -329,39 +339,47 @@ public class YogaCourseEditorActivity extends AppCompatActivity {
             entity.setNextClassDate(upcomingDate);
 
             if (isNetworkAvailable()) {
-                // ONLINE: Save local with isSynced=true, push to Firebase
-                entity.setCloudSyncStatus(true);
-                long localId = db.courseDao().insertCourse(entity);
+                // ONLINE: Push to Firebase first, then save to local with Firebase ID
                 YogaCourse course = new YogaCourse(
-                        entity.getCloudDatabaseId(), entity.getCourseName(), entity.getWeeklySchedule(), entity.getClassTime(), entity.getInstructorName(),
-                        entity.getMaxStudents(), entity.getCoursePrice(), entity.getSessionDuration(), entity.getCourseDescription(), entity.getAdditionalNotes(), entity.getNextClassDate(), entity.getLocalDatabaseId()
+                        null, name, schedule, time, teacher, capacity, price, duration, description, note, upcomingDate, 0
                 );
                 DatabaseReference.CompletionListener listener = (error, ref) -> {
                     if (error == null) {
-                        db.courseDao().markCourseAsSynced((int) localId, ref.getKey());
+                        // Now save to local database with Firebase ID
+                        entity.setCloudDatabaseId(ref.getKey());
+                        entity.setCloudSyncStatus(true);
+                        long localId = db.courseDao().insertCourse(entity);
+                        
                         runOnUiThread(() -> {
                             Toast.makeText(YogaCourseEditorActivity.this, "Course saved and synced!", Toast.LENGTH_SHORT).show();
-                            finish();
+                            // Set result to indicate data was updated
+                            setResult(RESULT_OK);
+                            // Add a small delay to ensure database transaction is committed
+                            new android.os.Handler().postDelayed(() -> finish(), 100);
                         });
                     } else {
+                        // If Firebase failed, save locally only
+                        entity.setCloudSyncStatus(false);
+                        db.courseDao().insertCourse(entity);
                         runOnUiThread(() -> {
                             Toast.makeText(YogaCourseEditorActivity.this, "Failed to sync with server, saved locally.", Toast.LENGTH_SHORT).show();
-                            finish();
+                            // Set result to indicate data was updated
+                            setResult(RESULT_OK);
+                            // Add a small delay to ensure database transaction is committed
+                            new android.os.Handler().postDelayed(() -> finish(), 100);
                         });
                     }
                 };
-                if (entity.getCloudDatabaseId() == null || entity.getCloudDatabaseId().isEmpty()) {
-                    firebaseManager.createNewCourse(course, listener);
-                } else {
-                    course.setId(entity.getCloudDatabaseId());
-                    firebaseManager.updateExistingCourse(course, listener);
-                }
+                firebaseManager.createNewCourse(course, listener);
             } else {
                 // OFFLINE: Save local with isSynced=false
                 entity.setCloudSyncStatus(false);
                 db.courseDao().insertCourse(entity);
                 Toast.makeText(YogaCourseEditorActivity.this, "Course saved locally. Please sync to upload.", Toast.LENGTH_SHORT).show();
-                finish();
+                // Set result to indicate data was updated
+                setResult(RESULT_OK);
+                // Add a small delay to ensure database transaction is committed
+                new android.os.Handler().postDelayed(() -> finish(), 100);
             }
         }
     }
